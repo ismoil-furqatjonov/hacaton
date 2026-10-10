@@ -6,10 +6,10 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { processUserMessage } from '../../lib/ai/agentEngine';
-import type { AgentContext } from '../../lib/ai/agentEngine';
-import { executeConfirmedBloodRequest } from '../../lib/ai/agentTools';
-import type { AIMessage, AIAction } from '../../types';
+import { processUserMessage, type AgentContext } from '../../lib/ai/agentEngine';
+import { executeConfirmedBloodRequest, type BloodRequestPayload } from '../../lib/ai/agentTools';
+import type { AIMessage, AIAction, BloodGroup } from '../../types';
+import MarkdownRenderer from '../../components/common/MarkdownRenderer';
 
 const INITIAL_MESSAGES: AIMessage[] = [
   {
@@ -44,7 +44,7 @@ export default function AIAgentPage() {
   const [messages, setMessages] = useState<AIMessage[]>(() => {
     const saved = localStorage.getItem('donor_ai_chat_history');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { /* ignore */ }
+      try { return JSON.parse(saved); } catch { /* ignore */ }
     }
     return INITIAL_MESSAGES;
   });
@@ -53,7 +53,7 @@ export default function AIAgentPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [agentContext, setAgentContext] = useState<AgentContext>({});
-  const [pendingConfirmation, setPendingConfirmation] = useState<any | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<BloodRequestPayload | null>(null);
 
   // Save to localStorage
   useEffect(() => {
@@ -86,11 +86,11 @@ export default function AIAgentPage() {
     setLoading(true);
 
     try {
-      // Simulate realistic AI thought process & execute backend engine with timeout
+      // Realistic AI thought process & execute backend engine with timeout signal
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-      const res = await processUserMessage(query, agentContext, user);
+      const res = await processUserMessage(query, agentContext, user, controller.signal);
       clearTimeout(timeoutId);
 
       // Context updates
@@ -112,7 +112,7 @@ export default function AIAgentPage() {
       };
 
       setMessages(prev => [...prev, aiMsg]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('AI Processing Error:', err);
       setErrorMsg("Kechirasiz, javob olishda uzilish yuz berdi. Iltimos, qaytadan urinib ko'ring.");
     } finally {
@@ -298,11 +298,14 @@ export default function AIAgentPage() {
                       border: isUser ? 'none' : '1px solid #E2E8F0',
                       fontSize: '0.92rem',
                       lineHeight: 1.55,
-                      whiteSpace: 'pre-wrap',
                       boxShadow: isUser ? '0 2px 8px rgba(15, 23, 42, 0.15)' : 'none',
                     }}
                   >
-                    {msg.text}
+                    {isUser ? (
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
+                    ) : (
+                      <MarkdownRenderer content={msg.text || ''} />
+                    )}
                   </div>
 
                   <div style={{

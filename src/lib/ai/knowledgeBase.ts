@@ -165,7 +165,7 @@ export const PLATFORM_GUIDE = {
     requests: "Qon So'rovlari (/request) — SOS shoshilinch yoki rejali qon so'rovlarini joylashtirish va donorlar javobini qabul qilish.",
     medications: "Dori Eslatmasi (/medications) — kunlik dori-darmonlar jadvali va brauzer orqali eslatmalar olish.",
     hospital: "Shifoxona Portali (/hospital) — klinika qon zaxiralarini boshqarish va tezkor talabnoma yuborish.",
-    chat: "Xavfsiz Suhbat (/chat) — donor va murojaatchi o'rtasida shaxsiy telefon maxfiyligini saqlagan holda yozishmalar.",
+    ai: "DONOR AI (/ai) — donorlik qoidalari, tibbiy ko'rsatmalar va platforma bo'yicha sun'iy intellekt konsultanti.",
     profile: "Profil (/profile) — donorlik maqomi (Tayyor, Band, Faol emas), qon guruhi va topshirish tarixini boshqarish.",
     admin: "Admin Paneli (/admin) — so'rovlarni moderatsiya qilish, xavfsizlik va audit nazorati.",
   },

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Home, Map, Droplets, Bot, Pill, User, Building2, MessageSquare,
-  LogOut, Bell, Shield, Menu, X
+  Home, Map, Droplets, Bot, Pill, User, Building2,
+  LogOut, Bell, Shield, Sun, Moon
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +13,6 @@ const navItems = [
   { to: '/map', icon: Map, label: 'Donor xaritasi' },
   { to: '/request', icon: Droplets, label: 'Qon so\'rovlari' },
   { to: '/hospital', icon: Building2, label: 'Shifoxona' },
-  { to: '/chat', icon: MessageSquare, label: 'Suhbatlar' },
   { to: '/ai', icon: Bot, label: 'DONOR AI' },
   { to: '/medications', icon: Pill, label: 'Dori eslatmasi' },
   { to: '/profile', icon: User, label: 'Profil' },
@@ -24,6 +23,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('donor_app_theme') as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('donor_app_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -137,6 +148,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             )}
           </button>
 
+          <button
+            className="sidebar-nav-item"
+            style={{ width: '100%', cursor: 'pointer' }}
+            onClick={toggleTheme}
+            title={theme === 'dark' ? "Yorug' rejimga o'tish" : "Tungi rejimga o'tish"}
+          >
+            {theme === 'dark' ? <Sun size={19} color="#FBBF24" /> : <Moon size={19} color="#64748B" />}
+            <span>{theme === 'dark' ? "Yorug' rejim" : "Tungi rejim"}</span>
+          </button>
+
           <div className="divider" style={{ margin: '8px 0', borderTop: '1px solid #E2E8F0' }} />
 
           {/* User info */}
@@ -152,6 +173,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div style={{ fontSize: '0.72rem', color: '#DC2626', fontWeight: 600 }}>
                   {user.blood_group ? `${user.blood_group} guruhi` : 'Qon guruhi belgilanmagan'}
                 </div>
+                {user.user_track && (
+                  <div style={{
+                    fontSize: '0.68rem',
+                    color: user.user_track === 'medication' ? '#16A34A' : user.user_track === 'donor' ? '#DC2626' : '#2563EB',
+                    fontWeight: 700,
+                    marginTop: '2px',
+                  }}>
+                    {user.user_track === 'medication' ? '💊 Dori bo\'limi' : user.user_track === 'donor' ? '🩸 Donorlik' : '🔍 Qon olish'}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -186,9 +217,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <Droplets size={20} />
           <span>SOS</span>
         </NavLink>
-        <NavLink to="/chat" className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}>
-          <MessageSquare size={20} />
-          <span>Chat</span>
+        <NavLink to="/hospital" className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}>
+          <Building2 size={20} />
+          <span>Shifoxona</span>
+        </NavLink>
+        <NavLink to="/medications" className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}>
+          <Pill size={20} />
+          <span>Dorilar</span>
         </NavLink>
         <NavLink to="/ai" className={({ isActive }) => `mobile-nav-item ${isActive ? 'active' : ''}`}>
           <Bot size={20} />

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import {
   User, Droplets, MapPin, Phone, Mail, Edit, Check, X,
-  LogOut, Shield, Heart, Clock, AlertCircle, ChevronRight
+  LogOut, Shield, Heart, Clock, AlertCircle, ChevronRight,
+  Pill, HeartHandshake, Sparkles, Activity
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { BLOOD_GROUPS, REGIONS, DONOR_STATUS_LABELS, DONOR_STATUS_COLORS } from '../../data/demo';
-import type { DonorStatus, BloodGroup } from '../../types';
+import type { DonorStatus, BloodGroup, UserTrack } from '../../types';
+import { BLOOD_COMPATIBILITY_TABLE } from '../../lib/bloodCompatibility';
 
 export default function ProfilePage() {
   const { user, signOut, updateProfile, isDemo } = useAuth();
@@ -22,8 +24,7 @@ export default function ProfilePage() {
   });
 
   if (!user) {
-    navigate('/auth');
-    return null;
+    return <Navigate to="/auth" replace />;
   }
 
   const initials = user.full_name
@@ -53,6 +54,13 @@ export default function ProfilePage() {
     await updateProfile({ donor_status: status });
     setSuccessMsg('Holat yangilandi!');
     setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  const handleTrackChange = async (track: UserTrack) => {
+    const isDonor = track === 'donor';
+    await updateProfile({ user_track: track, is_donor: isDonor });
+    setSuccessMsg(`Asosiy yo'nalishingiz o'zgartirildi: ${track === 'medication' ? 'DORI' : track === 'donor' ? 'QON BERISH' : 'QON OLISH'}`);
+    setTimeout(() => setSuccessMsg(''), 3500);
   };
 
   const handleSignOut = async () => {
@@ -199,6 +207,155 @@ export default function ProfilePage() {
             <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Qon guruhi</div>
           </div>
         </div>
+
+        {/* 1. Mening Yo'nalishim (3 Tracks Switcher) */}
+        <div className="card" style={{ marginBottom: '16px' }}>
+          <div className="card-body">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-navy)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={18} color="#DC2626" />
+                Mening asosiy yo'nalishim
+              </h3>
+              <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Istalgan vaqtda o'zgartirishingiz mumkin</span>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '12px',
+            }}>
+              {/* Track: DORI */}
+              <div
+                onClick={() => handleTrackChange('medication')}
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: user.user_track === 'medication' ? '2px solid #059669' : '1px solid #E2E8F0',
+                  background: user.user_track === 'medication' ? '#ECFDF5' : '#FFFFFF',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                }}
+              >
+                {user.user_track === 'medication' && (
+                  <span style={{ position: 'absolute', top: '10px', right: '10px', background: '#059669', color: 'white', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700 }}>✓</span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <div style={{ background: '#D1FAE5', padding: '6px', borderRadius: '8px', display: 'flex' }}>
+                    <Pill size={18} color="#059669" />
+                  </div>
+                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>DORI</strong>
+                </div>
+                <p style={{ fontSize: '0.78rem', color: '#475569', margin: 0 }}>
+                  Dorilar katalogi, qabul qilish jadvallari va xavfsiz eslatmalar.
+                </p>
+              </div>
+
+              {/* Track: QON BERISH */}
+              <div
+                onClick={() => handleTrackChange('donor')}
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: user.user_track === 'donor' || (!user.user_track && user.is_donor) ? '2px solid #DC2626' : '1px solid #E2E8F0',
+                  background: user.user_track === 'donor' || (!user.user_track && user.is_donor) ? '#FEF2F2' : '#FFFFFF',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                }}
+              >
+                {(user.user_track === 'donor' || (!user.user_track && user.is_donor)) && (
+                  <span style={{ position: 'absolute', top: '10px', right: '10px', background: '#DC2626', color: 'white', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700 }}>✓</span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <div style={{ background: '#FEE2E2', padding: '6px', borderRadius: '8px', display: 'flex' }}>
+                    <HeartHandshake size={18} color="#DC2626" />
+                  </div>
+                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>QON BERISH</strong>
+                </div>
+                <p style={{ fontSize: '0.78rem', color: '#475569', margin: 0 }}>
+                  Donor profili, topshirishga tayyorlik holati va muhtojlarga yordam.
+                </p>
+              </div>
+
+              {/* Track: QON OLISH */}
+              <div
+                onClick={() => handleTrackChange('recipient')}
+                style={{
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: user.user_track === 'recipient' ? '2px solid #2563EB' : '1px solid #E2E8F0',
+                  background: user.user_track === 'recipient' ? '#EFF6FF' : '#FFFFFF',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                }}
+              >
+                {user.user_track === 'recipient' && (
+                  <span style={{ position: 'absolute', top: '10px', right: '10px', background: '#2563EB', color: 'white', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700 }}>✓</span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <div style={{ background: '#DBEAFE', padding: '6px', borderRadius: '8px', display: 'flex' }}>
+                    <Droplets size={18} color="#2563EB" />
+                  </div>
+                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>QON OLISH</strong>
+                </div>
+                <p style={{ fontSize: '0.78rem', color: '#475569', margin: 0 }}>
+                  Shoshilinch qon so'rovi yaratish va mos donorlar bilan bog'lanish.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Tibbiy Qon Mosligi Kartasi */}
+        {user.blood_group && BLOOD_COMPATIBILITY_TABLE[user.blood_group] && (() => {
+          const compat = BLOOD_COMPATIBILITY_TABLE[user.blood_group];
+          return (
+            <div className="card" style={{ marginBottom: '16px', border: '1px solid #FECACA', background: '#FFFDFD' }}>
+              <div className="card-body">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Activity size={20} color="#DC2626" />
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#991B1B' }}>
+                    Tibbiy qon mosligi tahlili — {user.blood_group}
+                  </h3>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '12px' }}>
+                  <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#166534', marginBottom: '6px' }}>
+                      🩸 Siz qon bera olasiz (Donorlik):
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {compat.canGiveTo.map(g => (
+                        <span key={g} style={{ background: '#DCFCE7', color: '#15803D', fontWeight: 700, fontSize: '0.8rem', padding: '3px 8px', borderRadius: '6px' }}>
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E40AF', marginBottom: '6px' }}>
+                      💉 Sizga qon bera oladi (Qabul qilish):
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {compat.canReceiveFrom.map(g => (
+                        <span key={g} style={{ background: '#DBEAFE', color: '#1D4ED8', fontWeight: 700, fontSize: '0.8rem', padding: '3px 8px', borderRadius: '6px' }}>
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: '0.8rem', color: '#64748B', margin: 0, lineHeight: 1.4 }}>
+                  ℹ️ {compat.description}
+                </p>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Donor Status */}
         <div className="card" style={{ marginBottom: '16px' }}>

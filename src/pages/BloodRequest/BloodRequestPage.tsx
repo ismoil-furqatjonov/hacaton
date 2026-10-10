@@ -11,6 +11,7 @@ import {
 import { isValidBloodGroup } from '../../lib/catalogs';
 import type { BloodRequest, BloodGroup, UrgencyLevel, RequestStatus } from '../../types';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { getCompatibleDonorsForRecipient, canDonateBlood } from '../../lib/bloodCompatibility';
 import { formatDistanceToNow, format } from 'date-fns';
 import { uz } from 'date-fns/locale';
 
@@ -23,16 +24,27 @@ const urgencyBorderColors: Record<UrgencyLevel, string> = {
 
 export default function BloodRequestPage() {
   const { user, isDemo } = useAuth();
-  const [requests, setRequests] = useState<BloodRequest[]>(() => {
-    const saved = localStorage.getItem('donor_user_blood_requests');
+  
+  // Faqat foydalanuvchi qo'lda kiritgan so'rovlar (demo ma'lumotlar bilan qorishib ketmaydi)
+  const [userCreatedRequests, setUserCreatedRequests] = useState<BloodRequest[]>(() => {
+    const saved = localStorage.getItem('donor_user_created_requests');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch (e) { /* ignore */ }
+        if (Array.isArray(parsed)) return parsed;
+      } catch { /* ignore */ }
     }
-    return DEMO_BLOOD_REQUESTS;
+    return [];
   });
+
+  const [serverRequests, setServerRequests] = useState<BloodRequest[]>(() => {
+    return isDemo ? DEMO_BLOOD_REQUESTS : [];
+  });
+
+  const requests = React.useMemo(() => {
+    return [...userCreatedRequests, ...serverRequests];
+  }, [userCreatedRequests, serverRequests]);
+
   const [showForm, setShowForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<RequestStatus | ''>('');
   const [filterGroup, setFilterGroup] = useState<BloodGroup | ''>('');
@@ -55,18 +67,7 @@ export default function BloodRequestPage() {
     notes: '',
   });
 
-  useEffect(() => {
-    if (!isDemo && isSupabaseConfigured && supabase) {
-      loadRequests();
-    }
-  }, [isDemo]);
-
-  // Sahifa yangilanganda ham qo'lda kiritilgan so'rovlar saqlanadi
-  useEffect(() => {
-    localStorage.setItem('donor_user_blood_requests', JSON.stringify(requests));
-  }, [requests]);
-
-  const loadRequests = async () => {
+  const loadRequests = React.useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
     const { data } = await supabase
@@ -74,9 +75,22 @@ export default function BloodRequestPage() {
       .select('*, requester:profiles!requester_id(*)')
       .not('status', 'in', '(completed,cancelled)')
       .order('created_at', { ascending: false });
-    if (data) setRequests(data as BloodRequest[]);
+    if (data) setServerRequests(data as BloodRequest[]);
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isDemo && isSupabaseConfigured && supabase) {
+      loadRequests();
+    } else {
+      setServerRequests(DEMO_BLOOD_REQUESTS);
+    }
+  }, [isDemo, loadRequests]);
+
+  // Foydalanuvchi yaratgan so'rovlarni saqlash
+  useEffect(() => {
+    localStorage.setItem('donor_user_created_requests', JSON.stringify(userCreatedRequests));
+  }, [userCreatedRequests]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +129,7 @@ export default function BloodRequestPage() {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      setRequests(prev => [newReq, ...prev]);
+      setUserCreatedRequests(prev => [newReq, ...prev]);
       setSuccessMsg(`So'rov yuborildi! Demo rejimda ${newReq.matched_donors} ta mos donor topildi.`);
       setShowForm(false);
     } else {
@@ -153,7 +167,10 @@ export default function BloodRequestPage() {
     setRespondingId(requestId);
 
     if (isDemo || !isSupabaseConfigured || !supabase) {
-      setRequests(prev => prev.map(r =>
+      setUserCreatedRequests(prev => prev.map(r =>
+        r.id === requestId ? { ...r, status: response === 'accepted' ? 'donor_responded' : r.status } : r
+      ));
+      setServerRequests(prev => prev.map(r =>
         r.id === requestId ? { ...r, status: response === 'accepted' ? 'donor_responded' : r.status } : r
       ));
       setSuccessMsg(response === 'accepted' ? "✅ Javobingiz yuborildi! So'rov egasi siz bilan bog'lanadi." : "Javobingiz qabul qilindi.");
@@ -270,6 +287,35 @@ export default function BloodRequestPage() {
                     </div>
                   </div>
 
+                  {form.blood_group && (
+                    <div style={{
+                      background: '#FEF2F2',
+                      border: '1px solid #FECACA',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      flexWrap: 'wrap',
+                    }}>
+                      <span style={{ fontWeight: 700, color: '#991B1B' }}>Mos keluvchi barcha donorlar:</span>
+                      {getCompatibleDonorsForRecipient(form.blood_group).map(g => (
+                        <span key={g} style={{
+                          background: '#FFFFFF',
+                          color: '#DC2626',
+                          fontWeight: 800,
+                          padding: '2px 7px',
+                          borderRadius: '4px',
+                          border: '1px solid #FCA5A5',
+                          fontSize: '0.74rem'
+                        }}>
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="form-group">
                     <label className="form-label">Hudud / Kasalxona *</label>
                     <input className="form-input" type="text" placeholder="Toshkent, 1-Respublika kasalxonasi"
@@ -364,6 +410,7 @@ export default function BloodRequestPage() {
                 key={req.id}
                 request={req}
                 currentUserId={user?.id}
+                currentUserBloodGroup={user?.blood_group as BloodGroup | undefined}
                 onRespond={handleRespond}
                 responding={respondingId === req.id}
               />
@@ -378,11 +425,13 @@ export default function BloodRequestPage() {
 function RequestDetailCard({
   request,
   currentUserId,
+  currentUserBloodGroup,
   onRespond,
   responding,
 }: {
   request: BloodRequest;
   currentUserId?: string;
+  currentUserBloodGroup?: BloodGroup;
   onRespond: (id: string, resp: 'accepted' | 'declined') => void;
   responding: boolean;
 }) {
@@ -420,6 +469,52 @@ function RequestDetailCard({
                 <Clock size={14} />
                 <span>{formatDistanceToNow(new Date(request.created_at), { addSuffix: true, locale: uz })}</span>
               </div>
+            </div>
+
+            {/* Mos keluvchi donor guruhlari badge qatori */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              flexWrap: 'wrap',
+              marginBottom: '12px',
+              padding: '6px 10px',
+              background: '#F8FAFC',
+              borderRadius: '8px',
+              border: '1px solid #E2E8F0',
+            }}>
+              <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 600 }}>
+                Mos donorlar:
+              </span>
+              {getCompatibleDonorsForRecipient(request.blood_group).map(g => (
+                <span key={g} style={{
+                  padding: '2px 7px',
+                  borderRadius: '5px',
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  background: '#FEF2F2',
+                  color: '#DC2626',
+                  border: '1px solid #FECACA',
+                }}>
+                  {g}
+                </span>
+              ))}
+              {currentUserBloodGroup && canDonateBlood(currentUserBloodGroup, request.blood_group) && (
+                <span style={{
+                  marginLeft: 'auto',
+                  background: '#DCFCE7',
+                  color: '#16A34A',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}>
+                  ✓ Qoningiz ({currentUserBloodGroup}) to'g'ri keladi
+                </span>
+              )}
             </div>
 
             {request.needed_by && (

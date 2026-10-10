@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { Profile } from '../types';
+import type { Profile, UserTrack } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DEMO_PROFILE } from '../data/demo';
 
@@ -22,6 +22,7 @@ interface SignUpData {
   phone?: string;
   blood_group?: string;
   region?: string;
+  user_track?: UserTrack;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -32,11 +33,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
-    const hasSignedOut = localStorage.getItem('donor_signed_out');
+    const savedSession = localStorage.getItem('donor_user_session');
     const demoMode = localStorage.getItem('donor_demo_mode');
+    const hasSignedOut = localStorage.getItem('donor_signed_out');
 
-    // Supabase sozlanmagan bo'lsa yoki demo rejimi tanlangan bo'lsa, avtomatik demo profilni yuklash
-    if (demoMode === 'true' || (!isSupabaseConfigured && hasSignedOut !== 'true')) {
+    // 1. Saqlangan faol sessiya bo'lsa tiklash
+    if (savedSession && hasSignedOut !== 'true') {
+      try {
+        const parsed = JSON.parse(savedSession);
+        if (parsed && parsed.id) {
+          setUser(parsed);
+          setIsDemo(demoMode === 'true' || !isSupabaseConfigured);
+          setIsLoading(false);
+          return;
+        }
+      } catch { /* ignore */ }
+    }
+
+    // 2. Foydalanuvchi auth sahifasida "Demo kirish"ni tanlagan bo'lsa
+    if (demoMode === 'true' && hasSignedOut !== 'true') {
       setUser(DEMO_PROFILE);
       setIsDemo(true);
       setIsLoading(false);
@@ -44,6 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (!isSupabaseConfigured || !supabase) {
+      // Ro'yxatdan o'tmagan yoki kirmagan bo'lsa, tizimga ruxsat berilmaydi
+      setUser(null);
       setIsLoading(false);
       return;
     }
@@ -79,39 +96,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     if (!isSupabaseConfigured || !supabase) {
-      // Demo rejimda avtomatik kirish imkonini berish
+      // Offline / Demo rejimda kirish
       localStorage.removeItem('donor_signed_out');
       localStorage.setItem('donor_demo_mode', 'true');
-      setUser({
+      const profile: Profile = {
         ...DEMO_PROFILE,
         email: email || DEMO_PROFILE.email,
         full_name: email ? email.split('@')[0].toUpperCase() : DEMO_PROFILE.full_name,
-      });
+        user_track: DEMO_PROFILE.user_track || 'donor',
+      };
+      localStorage.setItem('donor_user_session', JSON.stringify(profile));
+      setUser(profile);
       setIsDemo(true);
       return { error: null };
     }
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error && data.user) {
+      localStorage.removeItem('donor_signed_out');
+      await loadProfile(data.user.id);
+    }
     setIsLoading(false);
     return { error: error?.message || null };
   };
 
   const signUp = async (data: SignUpData) => {
+    const isDonor = data.user_track === 'donor';
+
     if (!isSupabaseConfigured || !supabase) {
-      // Demo rejimda ro'yxatdan o'tishni muvaffaqiyatli qilish
+      // Offline / Demo rejimda ro'yxatdan o'tish
       localStorage.removeItem('donor_signed_out');
       localStorage.setItem('donor_demo_mode', 'true');
-      setUser({
+      const newProfile: Profile = {
         ...DEMO_PROFILE,
+        id: `user-${Date.now()}`,
         email: data.email,
         full_name: data.full_name,
-        phone: data.phone || DEMO_PROFILE.phone,
-        blood_group: (data.blood_group as any) || DEMO_PROFILE.blood_group,
-        region: data.region || DEMO_PROFILE.region,
-      });
+        phone: data.phone || '',
+        blood_group: (data.blood_group as any) || undefined,
+        region: data.region || '',
+        user_track: data.user_track || 'donor',
+        is_donor: isDonor,
+        is_admin: false,
+      };
+      localStorage.setItem('donor_user_session', JSON.stringify(newProfile));
+      setUser(newProfile);
       setIsDemo(true);
       return { error: null };
     }
+
     setIsLoading(true);
     const { error, data: authData } = await supabase.auth.signUp({
       email: data.email,
@@ -122,32 +155,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           phone: data.phone,
           blood_group: data.blood_group,
           region: data.region,
+          user_track: data.user_track || 'donor',
         },
       },
     });
+
     if (!error && authData.user) {
-      await supabase.from('profiles').insert({
+      localStorage.removeItem('donor_signed_out');
+      const profileData: Partial<Profile> = {
         id: authData.user.id,
         email: data.email,
         full_name: data.full_name,
         phone: data.phone,
-        blood_group: data.blood_group,
+        blood_group: (data.blood_group as any) || undefined,
         region: data.region,
+        user_track: data.user_track || 'donor',
         donor_status: 'available',
-        is_donor: false,
+        is_donor: isDonor,
         is_admin: false,
         is_blocked: false,
         donations_count: 0,
         helped_count: 0,
-      });
+      };
+
+      await supabase.from('profiles').insert(profileData);
+      const fullProfile = { ...DEMO_PROFILE, ...profileData } as Profile;
+      localStorage.setItem('donor_user_session', JSON.stringify(fullProfile));
+      setUser(fullProfile);
     }
     setIsLoading(false);
     return { error: error?.message || null };
   };
 
   const signOut = async () => {
-    localStorage.setItem('donor_signed_out', 'true');
+    localStorage.removeItem('donor_user_session');
     localStorage.removeItem('donor_demo_mode');
+    localStorage.setItem('donor_signed_out', 'true');
     if (supabase) await supabase.auth.signOut();
     setUser(null);
     setIsDemo(false);
@@ -165,8 +208,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProfile = async (data: Partial<Profile>) => {
-    if (isDemo) {
-      setUser(prev => prev ? { ...prev, ...data } : null);
+    if (isDemo || !isSupabaseConfigured) {
+      setUser(prev => {
+        if (!prev) return null;
+        const updated = { ...prev, ...data, updated_at: new Date().toISOString() };
+        localStorage.setItem('donor_user_session', JSON.stringify(updated));
+        return updated;
+      });
       return { error: null };
     }
     if (!supabase || !user) return { error: 'Foydalanuvchi topilmadi' };
@@ -174,12 +222,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from('profiles')
       .update({ ...data, updated_at: new Date().toISOString() })
       .eq('id', user.id);
-    if (!error) setUser(prev => prev ? { ...prev, ...data } : null);
+    if (!error) {
+      setUser(prev => {
+        if (!prev) return null;
+        const updated = { ...prev, ...data, updated_at: new Date().toISOString() };
+        localStorage.setItem('donor_user_session', JSON.stringify(updated));
+        return updated;
+      });
+    }
     return { error: error?.message || null };
   };
 
   const enterDemoMode = () => {
+    localStorage.removeItem('donor_signed_out');
     localStorage.setItem('donor_demo_mode', 'true');
+    localStorage.setItem('donor_user_session', JSON.stringify(DEMO_PROFILE));
     setUser(DEMO_PROFILE);
     setIsDemo(true);
   };

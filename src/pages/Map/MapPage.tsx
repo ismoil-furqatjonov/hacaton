@@ -7,9 +7,11 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { DEMO_DONORS, BLOOD_GROUPS, DONOR_STATUS_LABELS, DONOR_STATUS_COLORS, REGIONS } from '../../data/demo';
 import type { BloodGroup, DonorStatus, DemoMarker } from '../../types';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { getCompatibleDonorsForRecipient, BLOOD_COMPATIBILITY_TABLE, canDonateBlood } from '../../lib/bloodCompatibility';
 
 // Fix Leaflet default icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -67,19 +69,22 @@ function getCachedDonorIcon(status: DonorStatus, bloodGroup: string): L.DivIcon 
 function LocationButton() {
   const map = useMap();
   const [locating, setLocating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const locate = () => {
     setLocating(true);
+    setErrorMsg('');
     map.locate({ setView: true, maxZoom: 13 });
     map.once('locationfound', () => setLocating(false));
     map.once('locationerror', () => {
       setLocating(false);
-      alert("Joylashuvni aniqlab bo'lmadi. GPS ruxsatini tekshiring.");
+      setErrorMsg("GPS aniqlanmadi");
+      setTimeout(() => setErrorMsg(''), 4000);
     });
   };
 
   return (
-    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000 }}>
+    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
       <button
         onClick={locate}
         style={{
@@ -101,14 +106,30 @@ function LocationButton() {
         <Navigation size={14} className={locating ? 'animate-spin' : ''} color="#DC2626" />
         {locating ? 'Aniqlanmoqda...' : 'Mening joylashuvim'}
       </button>
+      {errorMsg && (
+        <div style={{
+          background: '#FEF2F2',
+          color: '#DC2626',
+          border: '1px solid #FECACA',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          padding: '4px 8px',
+          borderRadius: '6px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        }}>
+          {errorMsg}
+        </div>
+      )}
     </div>
   );
 }
 
 export default function MapPage() {
   const { isDemo } = useAuth();
+  const navigate = useNavigate();
   const [donors, setDonors] = useState<DemoMarker[]>(DEMO_DONORS);
   const [selectedGroup, setSelectedGroup] = useState<BloodGroup | ''>('');
+  const [showCompatible, setShowCompatible] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<DonorStatus | ''>('');
   const [selectedRegion, setSelectedRegion] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -129,7 +150,16 @@ export default function MapPage() {
         .not('latitude', 'is', null)
         .then(({ data, error }) => {
           if (isMounted && !error && data && data.length > 0) {
-            const mapped = data.map((d: any) => ({
+            interface DbDonorItem {
+              id: string;
+              full_name: string;
+              blood_group: BloodGroup;
+              donor_status: DonorStatus;
+              region?: string;
+              latitude: number;
+              longitude: number;
+            }
+            const mapped = (data as unknown as DbDonorItem[]).map((d) => ({
               id: d.id,
               name: d.full_name,
               blood_group: d.blood_group,
@@ -147,11 +177,22 @@ export default function MapPage() {
     return () => { isMounted = false; };
   }, [isDemo]);
 
+  // Compatible groups for currently selected recipient group
+  const compatibleGroups = useMemo(() => {
+    if (!selectedGroup) return [];
+    return getCompatibleDonorsForRecipient(selectedGroup);
+  }, [selectedGroup]);
+
   // Memoized filtered donors (prevents unneeded re-filtering and extra renders)
   const filtered = useMemo(() => {
     let result = donors;
     if (selectedGroup) {
-      result = result.filter(d => d.blood_group === selectedGroup);
+      if (showCompatible) {
+        const allowed = getCompatibleDonorsForRecipient(selectedGroup);
+        result = result.filter(d => allowed.includes(d.blood_group));
+      } else {
+        result = result.filter(d => d.blood_group === selectedGroup);
+      }
     }
     if (selectedStatus) {
       result = result.filter(d => d.status === selectedStatus);
@@ -164,10 +205,11 @@ export default function MapPage() {
       result = result.filter(d => d.name.toLowerCase().includes(q) || d.region.toLowerCase().includes(q));
     }
     return result;
-  }, [donors, selectedGroup, selectedStatus, selectedRegion, searchQuery]);
+  }, [donors, selectedGroup, showCompatible, selectedStatus, selectedRegion, searchQuery]);
 
   const resetFilters = useCallback(() => {
     setSelectedGroup('');
+    setShowCompatible(true);
     setSelectedStatus('');
     setSelectedRegion('');
     setSearchQuery('');
@@ -274,6 +316,34 @@ export default function MapPage() {
             ))}
           </select>
 
+          {/* Compatibility Mode Toggle (Shown when blood group is selected) */}
+          {selectedGroup && (
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.8rem',
+              background: showCompatible ? '#FEF2F2' : '#F1F5F9',
+              color: showCompatible ? '#DC2626' : '#475569',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              border: '1px solid',
+              borderColor: showCompatible ? '#FECACA' : '#CBD5E1',
+              fontWeight: 600,
+              userSelect: 'none',
+              transition: 'all 0.2s ease',
+            }}>
+              <input
+                type="checkbox"
+                checked={showCompatible}
+                onChange={e => setShowCompatible(e.target.checked)}
+                style={{ accentColor: '#DC2626', cursor: 'pointer' }}
+              />
+              <span>Tibbiy mos barcha donorlar ({compatibleGroups.join(', ')})</span>
+            </label>
+          )}
+
           {(selectedGroup || selectedStatus || selectedRegion || searchQuery) && (
             <button
               onClick={resetFilters}
@@ -359,6 +429,56 @@ export default function MapPage() {
               </Marker>
             ))}
           </MapContainer>
+
+          {/* Floating Empty State when no donors match */}
+          {filtered.length === 0 && !loading && (
+            <div style={{
+              position: 'absolute',
+              top: '24px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 1000,
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '16px',
+              padding: '24px 28px',
+              boxShadow: '0 12px 36px rgba(15, 23, 42, 0.16)',
+              textAlign: 'center',
+              maxWidth: '420px',
+              width: '90%',
+            }}>
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '50%',
+                background: '#FEE2E2', color: '#DC2626',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 12px'
+              }}>
+                <Droplets size={24} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>
+                Mos donorlar topilmadi
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
+                {selectedGroup
+                  ? `${selectedGroup} guruhi bo'yicha hozircha bu hududda faol donor topilmadi. Qon so'rovi qoldiring, yaqin atrofdagi mos donorlarga tezkor xabar yuboriladi.`
+                  : "Tanlangan filtrlar bo'yicha donorlar topilmadi. Qidiruv parametrlarini o'zgartirib ko'ring yoki qon so'rovi e'lon qiling."}
+              </p>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={resetFilters}
+                >
+                  Filtrni tozalash
+                </button>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => navigate('/request')}
+                >
+                  🩸 Qon so'rovi yaratish
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Selected Donor Drawer / Detail Card */}
@@ -409,7 +529,7 @@ export default function MapPage() {
               borderRadius: '10px',
               padding: '12px',
               border: '1px solid #E2E8F0',
-              marginBottom: '16px',
+              marginBottom: '12px',
             }}>
               <div style={{ fontSize: '0.78rem', color: '#64748B', marginBottom: '4px' }}>Donorlik holati</div>
               <div style={{
@@ -418,6 +538,37 @@ export default function MapPage() {
                 color: selectedDonor.status === 'available' ? '#059669' : '#D97706'
               }}>
                 {DONOR_STATUS_LABELS[selectedDonor.status]}
+              </div>
+            </div>
+
+            {/* Qon mosligi ma'lumoti */}
+            <div style={{
+              background: '#FEF2F2',
+              borderRadius: '10px',
+              padding: '12px',
+              border: '1px solid #FECACA',
+              marginBottom: '16px',
+            }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#991B1B', marginBottom: '6px' }}>
+                🩸 Tibbiy moslik (Qon berishi mumkin):
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                {BLOOD_COMPATIBILITY_TABLE[selectedDonor.blood_group]?.canGiveTo.map(g => (
+                  <span key={g} style={{
+                    padding: '2px 7px',
+                    borderRadius: '6px',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    background: g === selectedGroup ? '#DC2626' : '#FFFFFF',
+                    color: g === selectedGroup ? '#FFFFFF' : '#DC2626',
+                    border: '1px solid #FCA5A5',
+                  }}>
+                    {g} {g === selectedGroup && '★'}
+                  </span>
+                ))}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#7F1D1D', lineHeight: 1.4 }}>
+                {BLOOD_COMPATIBILITY_TABLE[selectedDonor.blood_group]?.description}
               </div>
             </div>
 
@@ -440,8 +591,7 @@ export default function MapPage() {
 
             <button
               onClick={() => {
-                alert(`${selectedDonor.name} bilan xavfsiz suhbat oynasi ochilmoqda.`);
-                window.location.href = '/chat';
+                navigate(`/request`);
               }}
               style={{
                 padding: '12px',
@@ -453,9 +603,13 @@ export default function MapPage() {
                 border: 'none',
                 cursor: 'pointer',
                 marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
               }}
             >
-              Donorga xabar yozish
+              <Droplets size={18} /> Ushbu hudud bo'yicha qon so'rovi ochish
             </button>
           </div>
         )}

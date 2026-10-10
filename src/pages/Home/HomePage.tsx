@@ -36,15 +36,16 @@ export default function HomePage() {
     setLoading(true);
     try {
       // Stats
-      const [donorsRes, requestsRes, completedRes] = await Promise.all([
+      const [donorsRes, activeDonorsRes, requestsRes, completedRes] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact' }).eq('is_donor', true),
+        supabase.from('profiles').select('id', { count: 'exact' }).eq('is_donor', true).eq('donor_status', 'available'),
         supabase.from('blood_requests').select('id', { count: 'exact' }).not('status', 'in', '(completed,cancelled)'),
         supabase.from('blood_requests').select('id', { count: 'exact' }).eq('status', 'completed'),
       ]);
 
       setStats({
         total_donors: donorsRes.count || 0,
-        active_donors: (donorsRes.count || 0),
+        active_donors: activeDonorsRes.count || 0,
         completed_helps: completedRes.count || 0,
         active_requests: requestsRes.count || 0,
       });
@@ -201,6 +202,184 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* 3 ASOSIY YO'NALISH PLATFORMA KARTALARI */}
+        <section style={{ marginBottom: '40px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <span style={{
+              display: 'inline-block',
+              background: '#FEE2E2',
+              color: '#DC2626',
+              fontWeight: 800,
+              fontSize: '0.78rem',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '8px'
+            }}>
+              Platformaning 3 ta asosiy yo'nalishi
+            </span>
+            <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A' }}>
+              Qaysi yo'nalish bo'yicha yordam kerak?
+            </h2>
+            <p style={{ color: '#64748B', fontSize: '0.92rem', maxWidth: '580px', margin: '4px auto 0' }}>
+              Ro'yxatdan o'tgach, o'z yo'nalishingiz bo'yicha qulay va avtomatlashtirilgan xizmatlardan foydalaning.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+            {/* 1. DORI */}
+            <div
+              onClick={() => user ? navigate('/medications') : navigate('/auth')}
+              style={{
+                background: user?.user_track === 'medication' ? 'linear-gradient(180deg, #FFFFFF, #F0FDF4)' : '#FFFFFF',
+                borderRadius: '16px',
+                border: user?.user_track === 'medication' ? '2px solid #16A34A' : '1px solid #E2E8F0',
+                padding: '24px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 14px rgba(15, 23, 42, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                position: 'relative',
+              }}
+            >
+              {user?.user_track === 'medication' && (
+                <span style={{
+                  position: 'absolute', top: 12, right: 12,
+                  background: '#DCFCE7', color: '#16A34A', fontSize: '0.7rem',
+                  fontWeight: 800, padding: '3px 8px', borderRadius: '12px'
+                }}>
+                  ✓ Sizning tanlovingiz
+                </span>
+              )}
+              <div>
+                <div style={{
+                  width: '52px', height: '52px', borderRadius: '12px',
+                  background: '#DCFCE7', color: '#16A34A', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: '24px',
+                  marginBottom: '16px',
+                }}>
+                  💊
+                </div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                  1. Dori bo'limi
+                </h3>
+                <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
+                  Rasmiy dori katalogi, shaxsiy qabul jadvali va dozalar eslatmasi. Tibbiy maslahat bilan doimiy nazorat.
+                </p>
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                fontWeight: 700, fontSize: '0.86rem', color: '#16A34A'
+              }}>
+                Dorilar katalogi va jadvali <ArrowRight size={16} />
+              </div>
+            </div>
+
+            {/* 2. QON BERISH */}
+            <div
+              onClick={() => user ? navigate('/profile') : navigate('/auth')}
+              style={{
+                background: user?.user_track === 'donor' ? 'linear-gradient(180deg, #FFFFFF, #FEF2F2)' : '#FFFFFF',
+                borderRadius: '16px',
+                border: user?.user_track === 'donor' ? '2px solid #DC2626' : '1px solid #E2E8F0',
+                padding: '24px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 14px rgba(15, 23, 42, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                position: 'relative',
+              }}
+            >
+              {user?.user_track === 'donor' && (
+                <span style={{
+                  position: 'absolute', top: 12, right: 12,
+                  background: '#FEE2E2', color: '#DC2626', fontSize: '0.7rem',
+                  fontWeight: 800, padding: '3px 8px', borderRadius: '12px'
+                }}>
+                  ✓ Sizning tanlovingiz
+                </span>
+              )}
+              <div>
+                <div style={{
+                  width: '52px', height: '52px', borderRadius: '12px',
+                  background: '#FEE2E2', color: '#DC2626', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: '24px',
+                  marginBottom: '16px',
+                }}>
+                  🩸
+                </div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                  2. Qon berish (Donor)
+                </h3>
+                <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
+                  Donor sifatida ro'yxatdan o'ting, profilingizni faollashtiring, navbatdagi qon topshirish vaqtingizni va shoshilinch ehtiyojlarni kuzating.
+                </p>
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                fontWeight: 700, fontSize: '0.86rem', color: '#DC2626'
+              }}>
+                Donor profilini ko'rish <ArrowRight size={16} />
+              </div>
+            </div>
+
+            {/* 3. QON OLISH */}
+            <div
+              onClick={() => user ? navigate('/request') : navigate('/auth')}
+              style={{
+                background: user?.user_track === 'recipient' ? 'linear-gradient(180deg, #FFFFFF, #EFF6FF)' : '#FFFFFF',
+                borderRadius: '16px',
+                border: user?.user_track === 'recipient' ? '2px solid #2563EB' : '1px solid #E2E8F0',
+                padding: '24px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 14px rgba(15, 23, 42, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                position: 'relative',
+              }}
+            >
+              {user?.user_track === 'recipient' && (
+                <span style={{
+                  position: 'absolute', top: 12, right: 12,
+                  background: '#DBEAFE', color: '#2563EB', fontSize: '0.7rem',
+                  fontWeight: 800, padding: '3px 8px', borderRadius: '12px'
+                }}>
+                  ✓ Sizning tanlovingiz
+                </span>
+              )}
+              <div>
+                <div style={{
+                  width: '52px', height: '52px', borderRadius: '12px',
+                  background: '#DBEAFE', color: '#2563EB', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', fontSize: '24px',
+                  marginBottom: '16px',
+                }}>
+                  🔍
+                </div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                  3. Qon olish (Retsipiyent)
+                </h3>
+                <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
+                  Kerakli qon guruhi va hudud bo'yicha donor qidiring, shoshilinch SOS so'rov oching va mos donorlar bilan tezkor bog'laning.
+                </p>
+              </div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                fontWeight: 700, fontSize: '0.86rem', color: '#2563EB'
+              }}>
+                Qon so'rovi va donor qidirish <ArrowRight size={16} />
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Recent Requests */}
         <section>
           <div className="flex items-center justify-between mb-16">
@@ -265,7 +444,7 @@ export default function HomePage() {
               { label: '🗺️ Donor xaritasi', to: '/map' },
               { label: '🤖 AI yordamchi', to: '/ai' },
               { label: '💊 Dori eslatmasi', to: '/medications' },
-              { label: '💬 Xabarlar', to: '/chat' },
+              { label: '🩸 Qon so\'rovi', to: '/request' },
             ].map(({ label, to }) => (
               <button
                 key={to}

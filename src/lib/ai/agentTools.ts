@@ -8,13 +8,22 @@ import { supabase, isSupabaseConfigured } from '../supabase';
 import { isValidBloodGroup } from '../catalogs';
 import type { BloodGroup, DonorStatus, UrgencyLevel, BloodRequest } from '../../types';
 
+export interface BloodRequestPayload {
+  blood_group: BloodGroup;
+  region: string;
+  hospital?: string;
+  urgency?: UrgencyLevel;
+  quantity_units?: number;
+  contact_phone?: string;
+}
+
 export interface ToolExecutionResult {
   tool: string;
   success: boolean;
   message: string;
-  data?: any;
+  data?: unknown;
   requiresConfirmation?: boolean;
-  confirmationPayload?: any;
+  confirmationPayload?: BloodRequestPayload;
 }
 
 // 1. Donor qidirish (search_donors)
@@ -126,10 +135,10 @@ export function prepareBloodRequestCreation(params: {
     message: "Qon so'rovi shakllantirildi. Tasdiqlash uchun ko'rib chiqing.",
     requiresConfirmation: true,
     confirmationPayload: {
-      blood_group: params.blood_group,
+      blood_group: params.blood_group as BloodGroup,
       region: params.region,
       hospital: params.hospital || 'Markaziy shifoxona',
-      urgency: params.urgency || 'high',
+      urgency: (params.urgency || 'high') as UrgencyLevel,
       quantity_units: params.quantity_units || 2,
       contact_phone: params.contact_phone || "+998 90 123 45 67",
     },
@@ -138,7 +147,7 @@ export function prepareBloodRequestCreation(params: {
 
 // 4. Tasdiqlangandan so'ng so'rovni kiritish
 export async function executeConfirmedBloodRequest(
-  payload: any,
+  payload: BloodRequestPayload,
   userId?: string
 ): Promise<ToolExecutionResult> {
   try {
@@ -184,11 +193,12 @@ export async function executeConfirmedBloodRequest(
       message: `✅ So'rov muvaffaqiyatli e'lon qilindi! Mos donorlarga xabarnoma yuborilmoqda.`,
       data: newRequest,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : "Noma'lum";
     return {
       tool: 'create_blood_request',
       success: false,
-      message: `So'rovni yaratishda xatolik yuz berdi: ${error.message || 'Noma\'lum'}`,
+      message: `So'rovni yaratishda xatolik yuz berdi: ${errMessage}`,
     };
   }
 }

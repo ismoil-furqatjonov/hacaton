@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, User, Phone, Droplets, MapPin, AlertCircle, Check } from 'lucide-react';
+import {
+  Eye, EyeOff, Mail, Lock, User, Phone, Droplets, MapPin,
+  AlertCircle, Check, Pill, HeartHandshake, Search, Sparkles
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { BLOOD_GROUPS, REGIONS } from '../../data/demo';
+import type { UserTrack } from '../../types';
 import { isSupabaseConfigured } from '../../lib/supabase';
 
 type Mode = 'login' | 'register' | 'forgot';
@@ -15,6 +19,9 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // 3 ta Asosiy Yo'nalish
+  const [selectedTrack, setSelectedTrack] = useState<UserTrack>('donor');
 
   // Login form
   const [loginData, setLoginData] = useState({ email: '', password: '' });
@@ -60,6 +67,10 @@ export default function AuthPage() {
       setError("Parollar mos kelmadi");
       return;
     }
+    if (selectedTrack === 'donor' && !regData.blood_group) {
+      setError("Donor bo'lish uchun qon guruhingizni ko'rsatish shart");
+      return;
+    }
 
     setSubmitting(true);
     const { error: err } = await signUp({
@@ -69,10 +80,23 @@ export default function AuthPage() {
       phone: regData.phone,
       blood_group: regData.blood_group,
       region: regData.region,
+      user_track: selectedTrack,
     });
     setSubmitting(false);
     if (err) { setError(err); return; }
-    setSuccess("Ro'yxatdan muvaffaqiyatli o'tdingiz! Email manzilingizni tasdiqlang.");
+
+    setSuccess("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
+
+    // Tanlangan yo'nalish bo'yicha darhol tegishli sahifaga yo'naltirish
+    setTimeout(() => {
+      if (selectedTrack === 'medication') {
+        navigate('/medications');
+      } else if (selectedTrack === 'recipient') {
+        navigate('/request');
+      } else {
+        navigate('/profile');
+      }
+    }, 700);
   };
 
   const handleGoogle = async () => {
@@ -118,10 +142,11 @@ export default function AuthPage() {
         borderRadius: 'var(--radius-xl)',
         boxShadow: 'var(--shadow-xl)',
         width: '100%',
-        maxWidth: '460px',
+        maxWidth: mode === 'register' ? '620px' : '460px',
         overflow: 'hidden',
         position: 'relative',
         zIndex: 1,
+        transition: 'max-width 0.25s ease',
       }}>
         {/* Logo Header */}
         <div style={{
@@ -260,6 +285,103 @@ export default function AuthPage() {
           {/* Register Form */}
           {mode === 'register' && (
             <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* 3 TA ASOSIY YO'NALISH */}
+              <div>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={16} color="#DC2626" /> Asosiy yo'nalishingizni tanlang:
+                </label>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                  gap: '10px',
+                  marginBottom: '6px',
+                }}>
+                  {/* Track 1: DORI */}
+                  <div
+                    onClick={() => setSelectedTrack('medication')}
+                    style={{
+                      padding: '14px 12px',
+                      borderRadius: '12px',
+                      border: selectedTrack === 'medication' ? '2px solid #059669' : '1px solid #CBD5E1',
+                      background: selectedTrack === 'medication' ? '#ECFDF5' : '#FFFFFF',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                    }}
+                  >
+                    {selectedTrack === 'medication' && (
+                      <span style={{ position: 'absolute', top: '8px', right: '8px', background: '#059669', color: 'white', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700 }}>✓</span>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <div style={{ background: '#D1FAE5', padding: '6px', borderRadius: '8px', display: 'flex' }}>
+                        <Pill size={18} color="#059669" />
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>DORI</div>
+                    </div>
+                    <p style={{ fontSize: '0.74rem', color: '#475569', margin: 0, lineHeight: 1.35 }}>
+                      Dorilar katalogi, qabul qilish jadvali va eslatmalar olish.
+                    </p>
+                  </div>
+
+                  {/* Track 2: QON BERISH */}
+                  <div
+                    onClick={() => setSelectedTrack('donor')}
+                    style={{
+                      padding: '14px 12px',
+                      borderRadius: '12px',
+                      border: selectedTrack === 'donor' ? '2px solid #DC2626' : '1px solid #CBD5E1',
+                      background: selectedTrack === 'donor' ? '#FEF2F2' : '#FFFFFF',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                    }}
+                  >
+                    {selectedTrack === 'donor' && (
+                      <span style={{ position: 'absolute', top: '8px', right: '8px', background: '#DC2626', color: 'white', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700 }}>✓</span>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <div style={{ background: '#FEE2E2', padding: '6px', borderRadius: '8px', display: 'flex' }}>
+                        <HeartHandshake size={18} color="#DC2626" />
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>QON BERISH</div>
+                    </div>
+                    <p style={{ fontSize: '0.74rem', color: '#475569', margin: 0, lineHeight: 1.35 }}>
+                      Donor bo'lish, qon topshirishga tayyorlik va insonlarga yordam.
+                    </p>
+                  </div>
+
+                  {/* Track 3: QON OLISH */}
+                  <div
+                    onClick={() => setSelectedTrack('recipient')}
+                    style={{
+                      padding: '14px 12px',
+                      borderRadius: '12px',
+                      border: selectedTrack === 'recipient' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: selectedTrack === 'recipient' ? '#EFF6FF' : '#FFFFFF',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                    }}
+                  >
+                    {selectedTrack === 'recipient' && (
+                      <span style={{ position: 'absolute', top: '8px', right: '8px', background: '#2563EB', color: 'white', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700 }}>✓</span>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <div style={{ background: '#DBEAFE', padding: '6px', borderRadius: '8px', display: 'flex' }}>
+                        <Droplets size={18} color="#2563EB" />
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>QON OLISH</div>
+                    </div>
+                    <p style={{ fontSize: '0.74rem', color: '#475569', margin: 0, lineHeight: 1.35 }}>
+                      Shoshilinch qon so'rovi yaratish va mos donorlar bilan bog'lanish.
+                    </p>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#64748B', marginBottom: '8px' }}>
+                  ℹ️ Tanlangan yo'nalishni keyinchalik Profil sozlamalaridan xohlagan paytda o'zgartira olasiz.
+                </div>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Ism va familiya *</label>
                 <div style={{ position: 'relative' }}>
@@ -269,29 +391,33 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Email *</label>
-                <div style={{ position: 'relative' }}>
-                  <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
-                  <input className="form-input" type="email" placeholder="email@misol.com" style={{ paddingLeft: '40px' }}
-                    value={regData.email} onChange={e => setRegData(p => ({ ...p, email: e.target.value }))} id="reg-email" required />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Email *</label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
+                    <input className="form-input" type="email" placeholder="email@misol.com" style={{ paddingLeft: '40px' }}
+                      value={regData.email} onChange={e => setRegData(p => ({ ...p, email: e.target.value }))} id="reg-email" required />
+                  </div>
                 </div>
-              </div>
 
-              <div className="form-group">
-                <label className="form-label">Telefon</label>
-                <div style={{ position: 'relative' }}>
-                  <Phone size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
-                  <input className="form-input" type="tel" placeholder="+998901234567" style={{ paddingLeft: '40px' }}
-                    value={regData.phone} onChange={e => setRegData(p => ({ ...p, phone: e.target.value }))} id="reg-phone" />
+                <div className="form-group">
+                  <label className="form-label">Telefon</label>
+                  <div style={{ position: 'relative' }}>
+                    <Phone size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
+                    <input className="form-input" type="tel" placeholder="+998901234567" style={{ paddingLeft: '40px' }}
+                      value={regData.phone} onChange={e => setRegData(p => ({ ...p, phone: e.target.value }))} id="reg-phone" />
+                  </div>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
-                  <label className="form-label">Qon guruhi</label>
+                  <label className="form-label">
+                    {selectedTrack === 'donor' ? 'Qon guruhi * (Donorlik uchun)' : selectedTrack === 'recipient' ? 'Kerakli qon guruhi' : 'Qon guruhi (Ixtiyoriy)'}
+                  </label>
                   <select className="form-select" value={regData.blood_group}
-                    onChange={e => setRegData(p => ({ ...p, blood_group: e.target.value }))} id="reg-blood-group">
+                    onChange={e => setRegData(p => ({ ...p, blood_group: e.target.value }))} id="reg-blood-group" required={selectedTrack === 'donor'}>
                     <option value="">Tanlang</option>
                     {BLOOD_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>

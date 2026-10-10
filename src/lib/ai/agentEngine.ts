@@ -15,8 +15,8 @@ import {
   toolGetBloodRequests,
   prepareBloodRequestCreation,
 } from './agentTools';
-import type { ToolExecutionResult } from './agentTools';
-import type { AIAction, BloodGroup } from '../../types';
+import type { ToolExecutionResult, BloodRequestPayload } from './agentTools';
+import type { AIAction, Profile, BloodGroup } from '../../types';
 
 export type DetectedLanguage = 'uz' | 'ru' | 'en';
 
@@ -24,7 +24,7 @@ export interface AgentContext {
   lastIntent?: string;
   selectedBloodGroup?: string;
   selectedRegion?: string;
-  pendingConfirmation?: any;
+  pendingConfirmation?: BloodRequestPayload | null;
 }
 
 export interface AgentResponse {
@@ -33,7 +33,7 @@ export interface AgentResponse {
   actions?: AIAction[];
   toolResult?: ToolExecutionResult;
   requiresConfirmation?: boolean;
-  confirmationData?: any;
+  confirmationData?: BloodRequestPayload;
   disclaimer: string;
 }
 
@@ -99,8 +99,13 @@ export function extractRegion(text: string): string | null {
 export async function processUserMessage(
   message: string,
   context: AgentContext,
-  userProfile: any
+  userProfile: Profile | null,
+  signal?: AbortSignal
 ): Promise<AgentResponse> {
+  if (signal?.aborted) {
+    throw new Error('So\'rov bekor qilindi (Timeout)');
+  }
+
   const lang = detectLanguage(message);
   const lower = message.toLowerCase();
   const disclaimer = KNOWLEDGE_METADATA.complianceDisclaimer;
@@ -271,14 +276,16 @@ export async function processUserMessage(
       contact_phone: userProfile?.phone || "+998 90 000 00 00",
     });
 
+    const foundCount = Array.isArray(searchRes.data) ? searchRes.data.length : 0;
+
     return {
       language: lang,
       response: lang === 'ru'
         ? `🚨 **Запрос принят: Группа ${group}, регион ${region}**\n\n` +
-          `🔍 Найдено потенциальных доноров: **${searchRes.data?.length || 0} человек**.\n` +
+          `🔍 Найдено потенциальных доноров: **${foundCount} человек**.\n` +
           `Хотите опубликовать экстренную SOS заявку для уведомления доноров?`
         : `🚨 **Shoshilinch so'rov: ${group} guruhi, ${region}**\n\n` +
-          `🔍 Hududda topilgan mos donorlar: **${searchRes.data?.length || 0} nafar**.\n\n` +
+          `🔍 Hududda topilgan mos donorlar: **${foundCount} nafar**.\n\n` +
           `Yaqin atrofdagi barcha donorlarga SMS/bildirishnoma jo'natish uchun quyidagi SOS so'rovni tasdiqlaysizmi?`,
       requiresConfirmation: true,
       confirmationData: prepRes.confirmationPayload,
@@ -302,15 +309,16 @@ export async function processUserMessage(
     const group = bgMatch || context.selectedBloodGroup;
     const region = extractRegion(message) || context.selectedRegion;
     const searchRes = await toolSearchDonors({ blood_group: group, region, status: 'available' });
+    const activeCount = Array.isArray(searchRes.data) ? searchRes.data.length : 0;
 
     return {
       language: lang,
       response: lang === 'ru'
         ? `🔍 **Результаты поиска доноров:**\n\n` +
-          `Найдено активных доноров: **${searchRes.data?.length || 0}**\n` +
-          `Вы можете связаться с ними через чат или посмотреть на карте.`
+          `Найдено активных доноров: **${activeCount}**\n` +
+          `Вы можете отправить им запрос или посмотреть на карте.`
         : `🔍 **Donorlar qidiruvi natijasi:**\n\n` +
-          `Faol donorlar soni: **${searchRes.data?.length || 0} nafar**.\n` +
+          `Faol donorlar soni: **${activeCount} nafar**.\n` +
           `Ularning joylashuvini xaritada ko'rishingiz yoki to'g'ridan-to'g'ri so'rov yuborishingiz mumkin.`,
       toolResult: searchRes,
       actions: [

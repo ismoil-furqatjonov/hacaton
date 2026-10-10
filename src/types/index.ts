@@ -22,6 +22,8 @@ export type NotificationType =
   | 'medication_reminder'
   | 'admin_review';
 
+export type UserTrack = 'medication' | 'donor' | 'recipient';
+
 // ==================== User / Profile ====================
 
 export interface Profile {
@@ -36,6 +38,7 @@ export interface Profile {
   is_donor: boolean;
   is_admin: boolean;
   is_blocked: boolean;
+  user_track?: UserTrack;
   donations_count: number;
   helped_count: number;
   latitude?: number;

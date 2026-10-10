@@ -10,7 +10,6 @@ const HomePage = lazy(() => import('./pages/Home/HomePage'));
 const MapPage = lazy(() => import('./pages/Map/MapPage'));
 const BloodRequestPage = lazy(() => import('./pages/BloodRequest/BloodRequestPage'));
 const HospitalPage = lazy(() => import('./pages/Hospital/HospitalPage'));
-const ChatPage = lazy(() => import('./pages/Chat/ChatPage'));
 const AIAgentPage = lazy(() => import('./pages/AIAgent/AIAgentPage'));
 const MedicationsPage = lazy(() => import('./pages/Medications/MedicationsPage'));
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage'));
@@ -57,6 +56,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <PageLoader />;
+  }
+
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!user.is_admin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   const { user } = useAuth();
 
@@ -78,11 +89,17 @@ export default function App() {
                     <Route path="/map" element={<MapPage />} />
                     <Route path="/request" element={<BloodRequestPage />} />
                     <Route path="/hospital" element={<HospitalPage />} />
-                    <Route path="/chat" element={<ChatPage />} />
                     <Route path="/ai" element={<AIAgentPage />} />
                     <Route path="/medications" element={<MedicationsPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/admin" element={<AdminPage />} />
+                    <Route
+                      path="/admin"
+                      element={
+                        <AdminRoute>
+                          <AdminPage />
+                        </AdminRoute>
+                      }
+                    />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Suspense>

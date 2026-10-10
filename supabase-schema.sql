@@ -468,3 +468,49 @@ CREATE TRIGGER on_auth_user_created
 
 -- Admin foydalanuvchi yaratish (real Supabase Auth UUID kiritish kerak)
 -- UPDATE profiles SET is_admin = true WHERE email = 'admin@donor.uz';
+
+-- ============================================================
+-- 10. RASMIY TASDIQLANGAN KATALOGLAR (ADMIN NAZORATIDA)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS approved_blood_groups (
+  code TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  description TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS approved_medications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  category TEXT NOT NULL,
+  standard_dosage TEXT,
+  contraindications TEXT,
+  is_approved BOOLEAN NOT NULL DEFAULT true,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE approved_blood_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approved_medications ENABLE ROW LEVEL SECURITY;
+
+-- Ommaviy ko'rish (Barcha tizim a'zolari ko'ra oladi)
+CREATE POLICY "Kataloglarni hamma ko'radi" ON approved_blood_groups
+  FOR SELECT USING (true);
+
+CREATE POLICY "Dorilar katalogini hamma ko'radi" ON approved_medications
+  FOR SELECT USING (true);
+
+-- Faqat Admin o'zgartira oladi (INSERT, UPDATE, DELETE)
+CREATE POLICY "Admin qon guruhlarini boshqaradi" ON approved_blood_groups
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+
+CREATE POLICY "Admin dorilarni boshqaradi" ON approved_medications
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+  );
+

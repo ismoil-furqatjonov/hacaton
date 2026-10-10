@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { DEMO_BLOOD_REQUESTS, DEMO_DONORS, DEMO_STATS } from '../../data/demo';
 import {
   getApprovedBloodGroups,
@@ -23,6 +24,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('stats');
   const [search, setSearch] = useState('');
+  const [deleteMedId, setDeleteMedId] = useState<string | null>(null);
 
   // Catalogs state
   const [bloodGroups, setBloodGroups] = useState<ApprovedBloodGroupItem[]>(getApprovedBloodGroups());
@@ -80,10 +82,15 @@ export default function AdminPage() {
   };
 
   const handleDeleteMedication = (id: string) => {
-    if (!window.confirm("Haqiqatan ham ushbu dorini katalogdan o'chirmoqchimisiz?")) return;
-    deleteMedicationAdmin(id, user);
+    setDeleteMedId(id);
+  };
+
+  const handleConfirmDeleteMedication = () => {
+    if (!deleteMedId) return;
+    deleteMedicationAdmin(deleteMedId, user);
     setMedications(getApprovedMedicationsCatalog());
     setToastMsg("Dori rasmiy katalogdan o'chirildi.");
+    setDeleteMedId(null);
   };
 
   const tabs = [
@@ -394,6 +401,17 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteMedId}
+        title="Dorini katalogdan o'chirish"
+        message="Haqiqatan ham ushbu dorini rasmiy tasdiqlangan katalogdan o'chirmoqchimisiz? Ushbu amal barcha tizim foydalanuvchilariga ta'sir qiladi."
+        confirmText="Ha, o'chirish"
+        cancelText="Bekor qilish"
+        variant="danger"
+        onConfirm={handleConfirmDeleteMedication}
+        onCancel={() => setDeleteMedId(null)}
+      />
     </div>
   );
 }
