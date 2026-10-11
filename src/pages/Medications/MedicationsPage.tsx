@@ -1,19 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Pill, Plus, Trash2, Edit, Clock, AlertCircle, Bell, CheckCircle2,
-  Search, BookOpen, ShieldCheck, Info
+  Search, BookOpen, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { getApprovedMedicationsCatalog, fetchApprovedMedicationsCatalog, type ApprovedMedicationItem } from '../../lib/catalogs';
 import type { MedicationReminder } from '../../types';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
-const DAY_NAMES = ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
-
 export default function MedicationsPage() {
   const { user, isDemo } = useAuth();
+  const { t, language } = useLanguage();
   const storageKey = `donor_user_medications_${user?.id || 'guest'}`;
+
+  const dayNames = useMemo(() => {
+    if (language === 'ru') return ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    if (language === 'en') return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return ['Ya', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sh'];
+  }, [language]);
 
   // Tabs: reminders yoki catalog
   const [activeTab, setActiveTab] = useState<'reminders' | 'catalog'>('reminders');
@@ -29,7 +35,7 @@ export default function MedicationsPage() {
         if (Array.isArray(parsed)) return parsed;
       } catch { /* ignore */ }
     }
-    return []; // Tizim o'zicha avtomatik dori qo'shmaydi!
+    return [];
   });
 
   const [showForm, setShowForm] = useState(false);
@@ -60,21 +66,21 @@ export default function MedicationsPage() {
   // Brauzer eslatmasi ruxsatini so'rash
   const handleEnableNotifications = async () => {
     if (typeof Notification === 'undefined') {
-      setErrorMsg("Brauzeringiz bildirishnomalarni qo'llab-quvvatlamaydi.");
+      setErrorMsg(t('common.error'));
       return;
     }
     try {
       const perm = await Notification.requestPermission();
       setNotifPermission(perm);
       if (perm === 'granted') {
-        setSuccessMsg("Brauzer dori eslatmalari faollashtirildi!");
-        new Notification("DONOR Platformasi", {
-          body: "Dori qabul qilish vaqti kelganda sizga eslatib turamiz.",
+        setSuccessMsg(t('medications.notifications_enabled'));
+        new Notification("DONOR Platform", {
+          body: t('medications.page_subtitle'),
           icon: "/favicon.ico",
         });
       }
     } catch {
-      setErrorMsg("Bildirishnoma ruxsatini olishda xatolik yuz berdi.");
+      setErrorMsg(t('common.error'));
     }
   };
 
@@ -83,7 +89,7 @@ export default function MedicationsPage() {
     localStorage.setItem(storageKey, JSON.stringify(reminders));
   }, [reminders, storageKey]);
 
-  // Supabase dan yuklash (agar ulangan bo'lsa)
+  // Supabase dan yuklash
   useEffect(() => {
     if (!isDemo && isSupabaseConfigured && supabase && user) {
       loadRemindersFromSupabase();
@@ -114,14 +120,13 @@ export default function MedicationsPage() {
     setErrorMsg('');
     setSuccessMsg('');
 
-    // Faqat vakolatli (tizimga kirgan) foydalanuvchi qo'shishi mumkin
     if (!user) {
-      setErrorMsg("Dori eslatmasini qo'shish uchun avval tizimga kiring!");
+      setErrorMsg(t('auth.error_fill_fields'));
       return;
     }
 
     if (!form.medication_name.trim()) {
-      setErrorMsg("Dori nomini kiriting yoki rasmiy katalogdan tanlang!");
+      setErrorMsg(t('auth.error_fill_fields'));
       return;
     }
 
@@ -147,7 +152,7 @@ export default function MedicationsPage() {
           .eq('id', editingId)
           .eq('user_id', user.id);
       }
-      setSuccessMsg("Eslatma muvaffaqiyatli yangilandi!");
+      setSuccessMsg(t('medications.saved_success'));
     } else {
       // Qo'lda yangi qo'shish
       const newReminder: MedicationReminder = {
@@ -176,7 +181,7 @@ export default function MedicationsPage() {
           is_active: true,
         });
       }
-      setSuccessMsg("Dori qo'lda muvaffaqiyatli qo'shildi va saqlandi!");
+      setSuccessMsg(t('medications.saved_success'));
     }
 
     setLoading(false);
@@ -205,7 +210,7 @@ export default function MedicationsPage() {
         .eq('id', id)
         .eq('user_id', user.id);
     }
-    setSuccessMsg("Dori eslatmasi o'chirildi.");
+    setSuccessMsg(t('medications.deleted_success'));
     setDeleteId(null);
     setTimeout(() => setSuccessMsg(''), 3000);
   };
@@ -245,10 +250,10 @@ export default function MedicationsPage() {
           </div>
           <div>
             <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A' }}>
-              Dori Eslatmasi
+              {t('medications.page_title')}
             </h1>
             <p style={{ fontSize: '0.85rem', color: '#64748B' }}>
-              Qo'lda kiritilgan shaxsiy dori jadvallari (tizim o'zicha dori qo'shmaydi)
+              {t('medications.page_subtitle')}
             </p>
           </div>
         </div>
@@ -270,9 +275,9 @@ export default function MedicationsPage() {
                 alignItems: 'center',
                 gap: '6px',
               }}
-              title="Brauzer eslatmalarini yoqish"
+              title={t('medications.enable_notifications')}
             >
-              <Bell size={16} color="#DC2626" /> Bildirishnomalarni yoqish
+              <Bell size={16} color="#DC2626" /> {t('medications.enable_notifications')}
             </button>
           )}
 
@@ -281,23 +286,23 @@ export default function MedicationsPage() {
               setEditingId(null);
               setShowForm(true);
             }}
-          style={{
-            padding: '10px 18px',
-            borderRadius: '10px',
-            background: '#DC2626',
-            color: '#FFFFFF',
-            fontWeight: 700,
-            fontSize: '0.88rem',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
-          }}
-        >
-          <Plus size={18} /> Yangi dori qo'shish
-        </button>
+            style={{
+              padding: '10px 18px',
+              borderRadius: '10px',
+              background: '#DC2626',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              fontSize: '0.88rem',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(220, 38, 38, 0.2)',
+            }}
+          >
+            <Plus size={18} /> {t('medications.btn_add_reminder')}
+          </button>
         </div>
       </div>
 
@@ -325,7 +330,7 @@ export default function MedicationsPage() {
             gap: '8px',
           }}
         >
-          <Clock size={16} /> Mening Eslatmalarim ({reminders.length})
+          <Clock size={16} /> {t('medications.tab_reminders')} ({reminders.length})
         </button>
 
         <button
@@ -344,7 +349,7 @@ export default function MedicationsPage() {
             gap: '8px',
           }}
         >
-          <BookOpen size={16} /> Rasmiy Dorilar Katalogi ({approvedCatalog.length})
+          <BookOpen size={16} /> {t('medications.tab_catalog')} ({approvedCatalog.length})
         </button>
       </div>
 
@@ -406,7 +411,7 @@ export default function MedicationsPage() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A' }}>
-                {editingId ? 'Dorini tahrirlash' : 'Yangi dori jadvalini qo\'lda kiritish'}
+                {editingId ? t('medications.edit_modal_title') : t('medications.modal_title')}
               </h3>
               <button
                 onClick={() => setShowForm(false)}
@@ -420,7 +425,7 @@ export default function MedicationsPage() {
               {/* Quick picker from Admin-approved catalog */}
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-                  Tasdiqlangan katalogdan tanlash (Ixtiyoriy):
+                  {t('medications.tab_catalog')}:
                 </label>
                 <select
                   onChange={(e) => {
@@ -428,7 +433,7 @@ export default function MedicationsPage() {
                   }}
                   style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
                 >
-                  <option value="">-- Katalogdan tanlash yoki o'zingiz yozing --</option>
+                  <option value="">-- {t('medications.tab_catalog')} --</option>
                   {approvedCatalog.map(item => (
                     <option key={item.id} value={item.name}>{item.name} ({item.category})</option>
                   ))}
@@ -437,13 +442,13 @@ export default function MedicationsPage() {
 
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#0F172A', marginBottom: '6px' }}>
-                  Dori nomi (Retsept bo'yicha): *
+                  {t('medications.form_med_name')}: *
                 </label>
                 <input
                   type="text"
                   value={form.medication_name}
                   onChange={(e) => setForm({ ...form, medication_name: e.target.value })}
-                  placeholder="Masalan: Fersinol, Vitamin D, yoki shifokor yozgan dori..."
+                  placeholder="Fersinol, Vitamin D..."
                   style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.9rem' }}
                   required
                 />
@@ -452,7 +457,7 @@ export default function MedicationsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-                    Birinchi qabul vaqti:
+                    {t('medications.form_start_time')}:
                   </label>
                   <input
                     type="time"
@@ -464,16 +469,16 @@ export default function MedicationsPage() {
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-                    Kunlik martasi:
+                    {t('medications.form_repeat_count')}:
                   </label>
                   <select
                     value={form.repeat_count}
                     onChange={(e) => setForm({ ...form, repeat_count: Number(e.target.value) })}
                     style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1' }}
                   >
-                    <option value={1}>1 mahal</option>
-                    <option value={2}>2 mahal (12 soatda bir)</option>
-                    <option value={3}>3 mahal (8 soatda bir)</option>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
                   </select>
                 </div>
               </div>
@@ -481,10 +486,10 @@ export default function MedicationsPage() {
               {/* Hafta kunlari */}
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-                  Qabul kunlari:
+                  {t('medications.form_days')}:
                 </label>
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  {DAY_NAMES.map((name, idx) => {
+                  {dayNames.map((name, idx) => {
                     const isSelected = form.days_of_week.includes(idx);
                     return (
                       <button
@@ -524,7 +529,7 @@ export default function MedicationsPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  Bekor qilish
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -539,7 +544,7 @@ export default function MedicationsPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  {loading ? 'Saqlanmoqda...' : 'Saqlash'}
+                  {loading ? t('common.loading') : t('common.save')}
                 </button>
               </div>
             </form>
@@ -573,10 +578,10 @@ export default function MedicationsPage() {
                 <Pill size={32} />
               </div>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>
-                Hozircha dori eslatmalari kiritilmagan
+                {t('medications.no_reminders')}
               </h3>
               <p style={{ fontSize: '0.88rem', color: '#64748B', maxWidth: '440px', margin: '0 auto 20px' }}>
-                Tizim qon guruhlari yoki dorilarni o'zicha avtomatik qo'shmaydi. Shifokor tavsiya qilgan dori vositalarini yuqoridagi <strong>“Yangi dori qo'shish”</strong> tugmasi orqali qo'lda kiriting.
+                {t('medications.no_reminders_desc')}
               </p>
               <button
                 onClick={() => setShowForm(true)}
@@ -591,7 +596,7 @@ export default function MedicationsPage() {
                   cursor: 'pointer',
                 }}
               >
-                + Dori jadvalini yaratish
+                + {t('medications.btn_add_reminder')}
               </button>
             </div>
           ) : (
@@ -627,7 +632,7 @@ export default function MedicationsPage() {
                           {reminder.medication_name}
                         </h4>
                         <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
-                          Kuniga {reminder.repeat_count} mahal
+                          {reminder.repeat_count}x
                         </span>
                       </div>
                     </div>
@@ -647,14 +652,14 @@ export default function MedicationsPage() {
                           setShowForm(true);
                         }}
                         style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: '4px' }}
-                        title="Tahrirlash"
+                        title={t('common.edit')}
                       >
                         <Edit size={16} />
                       </button>
                       <button
                         onClick={() => setDeleteId(reminder.id)}
                         style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: '4px' }}
-                        title="O'chirish"
+                        title={t('common.delete')}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -673,11 +678,11 @@ export default function MedicationsPage() {
                     marginBottom: '12px',
                   }}>
                     <Clock size={16} color="#DC2626" />
-                    <span>Birinchi qabul: <strong>{reminder.start_time}</strong></span>
+                    <span>{t('medications.form_start_time')}: <strong>{reminder.start_time}</strong></span>
                   </div>
 
                   <div style={{ display: 'flex', gap: '4px' }}>
-                    {DAY_NAMES.map((name, idx) => {
+                    {dayNames.map((name, idx) => {
                       const isDay = reminder.days_of_week.includes(idx);
                       return (
                         <span
@@ -724,7 +729,7 @@ export default function MedicationsPage() {
           }}>
             <ShieldCheck size={22} color="#B45309" style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>
-              <strong>Rasmiy Tibbiy Ogohlantirish:</strong> Ushbu katalogdagi ma'lumotlar faqat axborot berish maqsadida taqdim etiladi. Bu shifokor ko'rigi yoki tibbiy tashxis hisoblanmaydi. Katalogga faqat vakolatli ma'murlar va mutaxassislar dori qo'sha oladi. Dori qabul qilishdan oldin davolovchi shifokor bilan maslahatlashing.
+              {t('ai.disclaimer')}
             </div>
           </div>
 
@@ -740,7 +745,7 @@ export default function MedicationsPage() {
               <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
               <input
                 type="text"
-                placeholder="Dorini nomi yoki kategoriyasi bo'yicha qidirish..."
+                placeholder={t('medications.catalog_search')}
                 value={catalogSearch}
                 onChange={e => setCatalogSearch(e.target.value)}
                 style={{
@@ -754,12 +759,12 @@ export default function MedicationsPage() {
             </div>
 
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {['Barchasi', 'Temir', 'Vitamin', 'Anemiya'].map(cat => {
-                const isSelected = cat === 'Barchasi' ? !selectedCategory : selectedCategory === cat;
+              {[t('common.all')].map(cat => {
+                const isSelected = !selectedCategory;
                 return (
                   <button
                     key={cat}
-                    onClick={() => setSelectedCategory(cat === 'Barchasi' ? '' : cat)}
+                    onClick={() => setSelectedCategory('')}
                     style={{
                       padding: '8px 14px',
                       borderRadius: '8px',
@@ -821,11 +826,11 @@ export default function MedicationsPage() {
                     </div>
 
                     <div style={{ fontSize: '0.82rem', color: '#334155', marginBottom: '8px', lineHeight: 1.4 }}>
-                      <strong>Standart doza:</strong> {item.standard_dosage}
+                      <strong>{t('medications.standard_dosage')}:</strong> {item.standard_dosage}
                     </div>
 
                     <div style={{ fontSize: '0.8rem', color: '#991B1B', background: '#FEF2F2', padding: '8px 10px', borderRadius: '8px', marginBottom: '14px', lineHeight: 1.35 }}>
-                      <strong>Qarshi ko'rsatma:</strong> {item.contraindications}
+                      <strong>{t('medications.contraindications')}:</strong> {item.contraindications}
                     </div>
                   </div>
 
@@ -851,7 +856,7 @@ export default function MedicationsPage() {
                       gap: '6px',
                     }}
                   >
-                    <Clock size={15} color="#DC2626" /> Eslatma jadvaliga qo'shish
+                    <Clock size={15} color="#DC2626" /> {t('medications.btn_add_reminder')}
                   </button>
                 </div>
               ))}
@@ -859,13 +864,13 @@ export default function MedicationsPage() {
         </div>
       )}
 
-      {/* Professional Tasdiqlash Modali */}
+      {/* Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deleteId}
-        title="Dori eslatmasini o'chirish"
-        message="Haqiqatan ham ushbu dori qabul qilish jadvalini o'chirib tashlamoqchimisiz? Ushbu amalni ortga qaytarib bo'lmaydi."
-        confirmText="Ha, o'chirish"
-        cancelText="Bekor qilish"
+        title={t('medications.delete_confirm_title')}
+        message={t('medications.delete_confirm_desc')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteId(null)}

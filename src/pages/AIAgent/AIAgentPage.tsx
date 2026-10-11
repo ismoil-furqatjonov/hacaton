@@ -1,44 +1,65 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  Send, Bot, User, AlertCircle, MapPin, Droplets,
-  RefreshCw, ShieldAlert, CheckCircle2, XCircle, Sparkles,
-  Phone, Trash2, ArrowRight
+  Send, Bot, User, AlertCircle, RefreshCw, ShieldAlert, CheckCircle2, XCircle,
+  Trash2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { processUserMessage, type AgentContext } from '../../lib/ai/agentEngine';
 import { executeConfirmedBloodRequest, type BloodRequestPayload } from '../../lib/ai/agentTools';
-import type { AIMessage, AIAction, BloodGroup } from '../../types';
+import type { AIMessage, AIAction } from '../../types';
 import MarkdownRenderer from '../../components/common/MarkdownRenderer';
-
-const INITIAL_MESSAGES: AIMessage[] = [
-  {
-    id: 'msg-welcome',
-    sender: 'ai',
-    text: `Assalomu alaykum! Men **DONOR AI** intellektual yordamchisiman.\n\nSizga kerakli qon guruhini topish, donorlik qoidalarini tekshirish, SOS qon so'rovini e'lon qilish yoki platformada harakatlanishda yordam bera olaman.\n\nBugun sizga qanday yordam bera olaman?`,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    actions: [
-      { label: '🩸 Qon guruhim mosligi', action: 'ask_compat' },
-      { label: '🔍 Donorlarni qidirish', action: 'navigate', data: { path: '/map' } },
-      { label: '🚨 SOS so\'rov yaratish', action: 'ask_sos' },
-      { label: '📋 Qon topshirish qoidalari', action: 'ask_rules' },
-    ],
-  },
-];
-
-const QUICK_PROMPTS = [
-  "A+ qoni kimlarga to'g'ri keladi?",
-  "O- universal donormi?",
-  "Qon topshirishdan oldin nimalar qilish mumkin emas?",
-  "Menga O+ qon kerak, shoshilinch",
-  "Toshkentda donor qidirish",
-];
 
 export default function AIAgentPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const initialMessages: AIMessage[] = useMemo(() => [
+    {
+      id: 'msg-welcome',
+      sender: 'ai',
+      text: t('ai.welcome_text'),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      actions: [
+        { label: t('ai.quick_prompt_compat'), action: 'ask_compat' },
+        { label: t('ai.quick_prompt_search'), action: 'navigate', data: { path: '/map' } },
+        { label: t('ai.quick_prompt_sos'), action: 'ask_sos' },
+        { label: t('ai.quick_prompt_rules'), action: 'ask_rules' },
+      ],
+    },
+  ], [t]);
+
+  const quickPrompts = useMemo(() => {
+    if (language === 'ru') {
+      return [
+        "Кому подходит кровь А+?",
+        "Является ли О- универсальным донором?",
+        "Что нельзя делать перед сдачей крови?",
+        "Мне срочно нужна кровь О+",
+        "Поиск доноров в Ташкенте",
+      ];
+    }
+    if (language === 'en') {
+      return [
+        "Who can receive A+ blood?",
+        "Is O- universal donor?",
+        "What to avoid before donating blood?",
+        "I urgently need O+ blood",
+        "Find donors in Tashkent",
+      ];
+    }
+    return [
+      "A+ qoni kimlarga to'g'ri keladi?",
+      "O- universal donormi?",
+      "Qon topshirishdan oldin nimalar qilish mumkin emas?",
+      "Menga O+ qon kerak, shoshilinch",
+      "Toshkentda donor qidirish",
+    ];
+  }, [language]);
 
   // Local storage cache for conversation history
   const [messages, setMessages] = useState<AIMessage[]>(() => {
@@ -46,7 +67,7 @@ export default function AIAgentPage() {
     if (saved) {
       try { return JSON.parse(saved); } catch { /* ignore */ }
     }
-    return INITIAL_MESSAGES;
+    return initialMessages;
   });
 
   const [input, setInput] = useState('');
@@ -54,6 +75,13 @@ export default function AIAgentPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [agentContext, setAgentContext] = useState<AgentContext>({});
   const [pendingConfirmation, setPendingConfirmation] = useState<BloodRequestPayload | null>(null);
+
+  // Til o'zgarganda birinchi xabar bo'lsa yangilash
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].id === 'msg-welcome') {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages, messages.length]);
 
   // Save to localStorage
   useEffect(() => {
@@ -63,7 +91,7 @@ export default function AIAgentPage() {
 
   const handleClearHistory = () => {
     localStorage.removeItem('donor_ai_chat_history');
-    setMessages(INITIAL_MESSAGES);
+    setMessages(initialMessages);
     setAgentContext({});
     setPendingConfirmation(null);
   };
@@ -86,14 +114,12 @@ export default function AIAgentPage() {
     setLoading(true);
 
     try {
-      // Realistic AI thought process & execute backend engine with timeout signal
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       const res = await processUserMessage(query, agentContext, user, controller.signal);
       clearTimeout(timeoutId);
 
-      // Context updates
       setAgentContext(prev => ({
         ...prev,
         lastIntent: query,
@@ -114,7 +140,7 @@ export default function AIAgentPage() {
       setMessages(prev => [...prev, aiMsg]);
     } catch (err: unknown) {
       console.error('AI Processing Error:', err);
-      setErrorMsg("Kechirasiz, javob olishda uzilish yuz berdi. Iltimos, qaytadan urinib ko'ring.");
+      setErrorMsg(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -127,15 +153,13 @@ export default function AIAgentPage() {
     } else if (action.action === 'call' && action.data?.number) {
       window.open(`tel:${action.data.number}`);
     } else if (action.action === 'ask_compat') {
-      handleSend("Qon guruhlari mosligi jadvali haqida ma'lumot ber");
+      handleSend(language === 'ru' ? "Расскажи о таблице совместимости групп крови" : language === 'en' ? "Explain blood compatibility table" : "Qon guruhlari mosligi jadvali haqida ma'lumot ber");
     } else if (action.action === 'ask_sos') {
-      handleSend("Menga shoshilinch qon kerak, donor qidiruvini boshla");
+      handleSend(language === 'ru' ? "Мне срочно нужна кровь, начни поиск доноров" : language === 'en' ? "I urgently need blood, start searching donors" : "Menga shoshilinch qon kerak, donor qidiruvini boshla");
     } else if (action.action === 'ask_rules') {
-      handleSend("Qon topshirishga tayyorgarlik va talablar qanday?");
+      handleSend(language === 'ru' ? "Каковы правила и подготовка к сдаче крови?" : language === 'en' ? "What are rules and preparations for blood donation?" : "Qon topshirishga tayyorgarlik va talablar qanday?");
     } else if (action.action === 'search_donors' && action.data?.blood_group) {
-      handleSend(`${action.data.blood_group} qon guruhi bo'yicha donorlarni qidir`);
-    } else if (action.action === 'select_blood_group' && action.data?.group) {
-      handleSend(`${action.data.group} qon guruhi kerak`);
+      handleSend(`${action.data.blood_group} donor`);
     } else {
       handleSend(action.label);
     }
@@ -154,13 +178,13 @@ export default function AIAgentPage() {
         text: exec.message,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actions: [
-          { label: '📋 So\'rovlar ro\'yxatiga o\'tish', action: 'navigate', data: { path: '/request' } },
-          { label: '🗺️ Xaritani ochish', action: 'navigate', data: { path: '/map' } },
+          { label: `📋 ${t('nav.requests')}`, action: 'navigate', data: { path: '/request' } },
+          { label: `🗺️ ${t('nav.map')}`, action: 'navigate', data: { path: '/map' } },
         ],
       };
       setMessages(prev => [...prev, confirmMsg]);
-    } catch (e: any) {
-      setErrorMsg("So'rovni tasdiqlashda xatolik yuz berdi.");
+    } catch {
+      setErrorMsg(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -196,7 +220,7 @@ export default function AIAgentPage() {
               DONOR AI <span style={{ fontSize: '0.75rem', background: '#FEF2F2', color: '#DC2626', padding: '2px 8px', borderRadius: '12px', border: '1px solid #FCA5A5' }}>Healthcare Assistant</span>
             </h1>
             <p style={{ fontSize: '0.82rem', color: '#64748B' }}>
-              Tibbiy bilimlar bazasi, donor qidiruvi va platforma yordamchisi (UZ / RU / EN)
+              {t('ai.page_subtitle')}
             </p>
           </div>
         </div>
@@ -215,9 +239,9 @@ export default function AIAgentPage() {
             color: '#64748B',
             cursor: 'pointer',
           }}
-          title="Suhbat tarixini tozalash"
+          title={t('ai.btn_clear_history')}
         >
-          <Trash2 size={14} /> Yangi suhbat
+          <Trash2 size={14} /> {t('ai.btn_clear_history')}
         </button>
       </div>
 
@@ -236,7 +260,7 @@ export default function AIAgentPage() {
       }}>
         <ShieldAlert size={18} style={{ flexShrink: 0 }} />
         <div>
-          <strong>Tibbiy ogohlantirish:</strong> AI yakuniy tashxis qo'ymaydi va qonning klinik mosligini kafolatlamaydi. Shoshilinch hollarda <strong>103</strong> ga qo'ng'iroq qiling.
+          {t('ai.disclaimer')}
         </div>
       </div>
 
@@ -386,16 +410,12 @@ export default function AIAgentPage() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B45309', fontWeight: 700, marginBottom: '8px' }}>
                 <AlertCircle size={20} />
-                <span>Qon so'rovini tasdiqlash (Foydalanuvchi roziligi kerak)</span>
+                <span>{t('ai.confirm_sos_title')}</span>
               </div>
-              <p style={{ fontSize: '0.85rem', color: '#78350F', marginBottom: '12px' }}>
-                Haqiqatan ham quyidagi ma'lumotlar bilan shoshilinch qon so'rovini platformada e'lon qilmoqchimisiz?
-              </p>
               <div style={{ background: '#FFFFFF', borderRadius: '8px', padding: '10px', fontSize: '0.82rem', marginBottom: '12px', border: '1px solid #FDE68A' }}>
-                <div>🩸 <strong>Qon guruhi:</strong> {pendingConfirmation.blood_group}</div>
-                <div>📍 <strong>Hudud:</strong> {pendingConfirmation.region}</div>
-                <div>🏥 <strong>Shifoxona:</strong> {pendingConfirmation.hospital}</div>
-                <div>⚡ <strong>Daraja:</strong> {pendingConfirmation.urgency}</div>
+                <div>🩸 <strong>{t('common.blood_group')}:</strong> {pendingConfirmation.blood_group}</div>
+                <div>📍 <strong>{t('common.region')}:</strong> {pendingConfirmation.region}</div>
+                <div>🏥 <strong>{t('common.hospital')}:</strong> {pendingConfirmation.hospital}</div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -414,7 +434,7 @@ export default function AIAgentPage() {
                     gap: '6px',
                   }}
                 >
-                  <CheckCircle2 size={16} /> Ha, so'rovni e'lon qilish
+                  <CheckCircle2 size={16} /> {t('ai.confirm_sos_btn')}
                 </button>
                 <button
                   onClick={() => setPendingConfirmation(null)}
@@ -429,7 +449,7 @@ export default function AIAgentPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  <XCircle size={16} /> Bekor qilish
+                  <XCircle size={16} /> {t('ai.cancel_sos_btn')}
                 </button>
               </div>
             </div>
@@ -462,7 +482,7 @@ export default function AIAgentPage() {
                 fontSize: '0.85rem',
               }}>
                 <RefreshCw size={16} className="animate-spin" />
-                <span>DONOR AI tahlil qilmoqda...</span>
+                <span>{t('ai.thinking')}</span>
               </div>
             </div>
           )}
@@ -479,12 +499,6 @@ export default function AIAgentPage() {
               justifyContent: 'space-between',
             }}>
               <span>{errorMsg}</span>
-              <button
-                onClick={() => handleSend(messages[messages.length - 1]?.text)}
-                style={{ background: 'none', border: 'none', color: '#DC2626', fontWeight: 700, cursor: 'pointer' }}
-              >
-                Qayta urinish
-              </button>
             </div>
           )}
 
@@ -501,7 +515,7 @@ export default function AIAgentPage() {
           overflowX: 'auto',
           whiteSpace: 'nowrap',
         }}>
-          {QUICK_PROMPTS.map((prompt, idx) => (
+          {quickPrompts.map((prompt, idx) => (
             <button
               key={idx}
               onClick={() => handleSend(prompt)}
@@ -538,7 +552,7 @@ export default function AIAgentPage() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Savolingizni yozing (masalan: 'A+ kimlarga qon bera oladi?', 'SOS qon kerak')..."
+            placeholder={t('ai.prompt_placeholder')}
             style={{
               flex: 1,
               padding: '12px 16px',
@@ -570,7 +584,7 @@ export default function AIAgentPage() {
             }}
           >
             <Send size={16} />
-            <span style={{ display: 'none' }}>Yuborish</span>
+            <span>{t('ai.btn_send')}</span>
           </button>
         </form>
       </div>

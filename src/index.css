@@ -101,6 +101,12 @@ body {
     padding-bottom: 0;
     margin-left: 240px;
   }
+  .app-topbar {
+    left: 240px !important;
+  }
+  .mobile-topbar-logo {
+    display: none !important;
+  }
 }
 
 /* ============================================================

@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  MapPin, Filter, Navigation, RefreshCw, User,
-  Clock, AlertCircle, Search, Droplets, CheckCircle, Shield
+  Navigation, Search, Droplets, Shield, MapPin
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-import { DEMO_DONORS, BLOOD_GROUPS, DONOR_STATUS_LABELS, DONOR_STATUS_COLORS, REGIONS } from '../../data/demo';
+import { DEMO_DONORS, BLOOD_GROUPS, REGIONS } from '../../data/demo';
 import type { BloodGroup, DonorStatus, DemoMarker } from '../../types';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { getCompatibleDonorsForRecipient, BLOOD_COMPATIBILITY_TABLE, canDonateBlood } from '../../lib/bloodCompatibility';
+import { getCompatibleDonorsForRecipient, BLOOD_COMPATIBILITY_TABLE } from '../../lib/bloodCompatibility';
 
 // Fix Leaflet default icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -21,7 +21,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Cache Leaflet icons to eliminate DOM creation overhead & memory churn
+// Cache Leaflet icons
 const iconCache = new Map<string, L.DivIcon>();
 
 function getCachedDonorIcon(status: DonorStatus, bloodGroup: string): L.DivIcon {
@@ -66,7 +66,7 @@ function getCachedDonorIcon(status: DonorStatus, bloodGroup: string): L.DivIcon 
   return icon;
 }
 
-function LocationButton() {
+function LocationButton({ t }: { t: (k: string) => string }) {
   const map = useMap();
   const [locating, setLocating] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -78,7 +78,7 @@ function LocationButton() {
     map.once('locationfound', () => setLocating(false));
     map.once('locationerror', () => {
       setLocating(false);
-      setErrorMsg("GPS aniqlanmadi");
+      setErrorMsg(t('map.gps_error'));
       setTimeout(() => setErrorMsg(''), 4000);
     });
   };
@@ -104,7 +104,7 @@ function LocationButton() {
         disabled={locating}
       >
         <Navigation size={14} className={locating ? 'animate-spin' : ''} color="#DC2626" />
-        {locating ? 'Aniqlanmoqda...' : 'Mening joylashuvim'}
+        {locating ? t('map.locating') : t('map.my_location')}
       </button>
       {errorMsg && (
         <div style={{
@@ -126,6 +126,7 @@ function LocationButton() {
 
 export default function MapPage() {
   const { isDemo } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [donors, setDonors] = useState<DemoMarker[]>(DEMO_DONORS);
   const [selectedGroup, setSelectedGroup] = useState<BloodGroup | ''>('');
@@ -136,7 +137,6 @@ export default function MapPage() {
   const [loading, setLoading] = useState(false);
   const [selectedDonor, setSelectedDonor] = useState<DemoMarker | null>(null);
 
-  // Markaz: Toshkent
   const center: [number, number] = [41.2995, 69.2401];
 
   useEffect(() => {
@@ -177,13 +177,11 @@ export default function MapPage() {
     return () => { isMounted = false; };
   }, [isDemo]);
 
-  // Compatible groups for currently selected recipient group
   const compatibleGroups = useMemo(() => {
     if (!selectedGroup) return [];
     return getCompatibleDonorsForRecipient(selectedGroup);
   }, [selectedGroup]);
 
-  // Memoized filtered donors (prevents unneeded re-filtering and extra renders)
   const filtered = useMemo(() => {
     let result = donors;
     if (selectedGroup) {
@@ -242,7 +240,7 @@ export default function MapPage() {
           <div style={{ position: 'relative' }}>
             <input
               type="text"
-              placeholder="Donor yoki tuman..."
+              placeholder={t('map.search_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -271,7 +269,7 @@ export default function MapPage() {
               color: '#0F172A',
             }}
           >
-            <option value="">Barcha qon guruhlari</option>
+            <option value="">{t('requests.filter_all_groups')}</option>
             {BLOOD_GROUPS.map(bg => (
               <option key={bg} value={bg}>{bg}</option>
             ))}
@@ -291,10 +289,10 @@ export default function MapPage() {
               color: '#0F172A',
             }}
           >
-            <option value="">Barcha holatlar</option>
-            <option value="available">🟢 Tayyor ({counts.available})</option>
-            <option value="busy">🟡 Band ({counts.busy})</option>
-            <option value="unavailable">⚪ Faol emas</option>
+            <option value="">{t('map.all_statuses')}</option>
+            <option value="available">🟢 {t('map.status_available')} ({counts.available})</option>
+            <option value="busy">🟡 {t('map.status_busy')} ({counts.busy})</option>
+            <option value="unavailable">⚪ {t('map.status_unavailable')}</option>
           </select>
 
           {/* Region filter */}
@@ -310,13 +308,13 @@ export default function MapPage() {
               color: '#0F172A',
             }}
           >
-            <option value="">Barcha hududlar</option>
+            <option value="">{t('auth.select_region')}</option>
             {REGIONS.map(reg => (
               <option key={reg} value={reg}>{reg}</option>
             ))}
           </select>
 
-          {/* Compatibility Mode Toggle (Shown when blood group is selected) */}
+          {/* Compatibility Mode Toggle */}
           {selectedGroup && (
             <label style={{
               display: 'flex',
@@ -340,7 +338,7 @@ export default function MapPage() {
                 onChange={e => setShowCompatible(e.target.checked)}
                 style={{ accentColor: '#DC2626', cursor: 'pointer' }}
               />
-              <span>Tibbiy mos barcha donorlar ({compatibleGroups.join(', ')})</span>
+              <span>{t('requests.compatible_donors')} ({compatibleGroups.join(', ')})</span>
             </label>
           )}
 
@@ -357,13 +355,13 @@ export default function MapPage() {
                 cursor: 'pointer',
               }}
             >
-              Filtrni tozalash
+              {t('common.cancel')}
             </button>
           )}
         </div>
 
         <div style={{ fontSize: '0.82rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 700, color: '#0F172A' }}>{filtered.length}</span> donor ko'rsatilmoqda
+          <span style={{ fontWeight: 700, color: '#0F172A' }}>{filtered.length}</span> {t('map.donors_count')}
         </div>
       </div>
 
@@ -380,7 +378,7 @@ export default function MapPage() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
             />
-            <LocationButton />
+            <LocationButton t={t} />
 
             {filtered.map((donor) => (
               <Marker
@@ -412,7 +410,7 @@ export default function MapPage() {
                       fontWeight: 600,
                       marginBottom: '8px',
                     }}>
-                      {donor.status === 'available' ? '● Qon topshirishga tayyor' : '● Hozirda band'}
+                      ● {donor.status === 'available' ? t('map.status_available') : t('map.status_busy')}
                     </div>
                     <button
                       onClick={() => setSelectedDonor(donor)}
@@ -422,7 +420,7 @@ export default function MapPage() {
                         fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer'
                       }}
                     >
-                      Batafsil ko'rish
+                      {t('common.details')}
                     </button>
                   </div>
                 </Popup>
@@ -456,25 +454,20 @@ export default function MapPage() {
                 <Droplets size={24} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>
-                Mos donorlar topilmadi
+                {t('requests.no_requests_found')}
               </h3>
-              <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
-                {selectedGroup
-                  ? `${selectedGroup} guruhi bo'yicha hozircha bu hududda faol donor topilmadi. Qon so'rovi qoldiring, yaqin atrofdagi mos donorlarga tezkor xabar yuboriladi.`
-                  : "Tanlangan filtrlar bo'yicha donorlar topilmadi. Qidiruv parametrlarini o'zgartirib ko'ring yoki qon so'rovi e'lon qiling."}
-              </p>
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={resetFilters}
                 >
-                  Filtrni tozalash
+                  {t('common.cancel')}
                 </button>
                 <button
                   className="btn btn-primary btn-sm"
                   onClick={() => navigate('/request')}
                 >
-                  🩸 Qon so'rovi yaratish
+                  🩸 {t('requests.btn_new_request')}
                 </button>
               </div>
             </div>
@@ -531,13 +524,13 @@ export default function MapPage() {
               border: '1px solid #E2E8F0',
               marginBottom: '12px',
             }}>
-              <div style={{ fontSize: '0.78rem', color: '#64748B', marginBottom: '4px' }}>Donorlik holati</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748B', marginBottom: '4px' }}>{t('profile.donor_status_title')}</div>
               <div style={{
                 fontWeight: 700,
                 fontSize: '0.85rem',
                 color: selectedDonor.status === 'available' ? '#059669' : '#D97706'
               }}>
-                {DONOR_STATUS_LABELS[selectedDonor.status]}
+                {selectedDonor.status === 'available' ? t('map.status_available') : t('map.status_busy')}
               </div>
             </div>
 
@@ -550,7 +543,7 @@ export default function MapPage() {
               marginBottom: '16px',
             }}>
               <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#991B1B', marginBottom: '6px' }}>
-                🩸 Tibbiy moslik (Qon berishi mumkin):
+                🩸 {t('profile.can_donate_to')}:
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                 {BLOOD_COMPATIBILITY_TABLE[selectedDonor.blood_group]?.canGiveTo.map(g => (
@@ -567,9 +560,6 @@ export default function MapPage() {
                   </span>
                 ))}
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#7F1D1D', lineHeight: 1.4 }}>
-                {BLOOD_COMPATIBILITY_TABLE[selectedDonor.blood_group]?.description}
-              </div>
             </div>
 
             <div style={{
@@ -585,7 +575,7 @@ export default function MapPage() {
             }}>
               <Shield size={16} style={{ flexShrink: 0 }} />
               <div>
-                Xavfsizlik: Donorning aniq uy manzili ko'rsatilmaydi. Bog'lanish platforma orqali amalga oshiriladi.
+                {t('common.demo_banner')}
               </div>
             </div>
 
@@ -609,7 +599,7 @@ export default function MapPage() {
                 gap: '8px',
               }}
             >
-              <Droplets size={18} /> Ushbu hudud bo'yicha qon so'rovi ochish
+              <Droplets size={18} /> {t('requests.btn_new_request')}
             </button>
           </div>
         )}

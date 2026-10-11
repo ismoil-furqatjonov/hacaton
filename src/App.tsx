@@ -15,7 +15,10 @@ const MedicationsPage = lazy(() => import('./pages/Medications/MedicationsPage')
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage'));
 const AdminPage = lazy(() => import('./pages/Admin/AdminPage'));
 
+import { useLanguage } from './i18n/LanguageContext';
+
 function PageLoader() {
+  const { t } = useLanguage();
   return (
     <div style={{
       minHeight: '60vh',
@@ -39,7 +42,7 @@ function PageLoader() {
         🩸
       </div>
       <p style={{ color: '#64748B', fontSize: '0.88rem', fontWeight: 500 }}>
-        Yuklanmoqda...
+        {t('common.loading')}
       </p>
     </div>
   );

@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import {
-  User, Droplets, MapPin, Phone, Mail, Edit, Check, X,
-  LogOut, Shield, Heart, Clock, AlertCircle, ChevronRight,
-  Pill, HeartHandshake, Sparkles, Activity
+  MapPin, Phone, Mail, Edit, Check, X,
+  LogOut, Shield, ChevronRight,
+  Pill, HeartHandshake, Sparkles, Activity, Droplets, Clock, Heart, AlertCircle
 } from 'lucide-react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { BLOOD_GROUPS, REGIONS, DONOR_STATUS_LABELS, DONOR_STATUS_COLORS } from '../../data/demo';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { BLOOD_GROUPS, REGIONS } from '../../data/demo';
 import type { DonorStatus, BloodGroup, UserTrack } from '../../types';
 import { BLOOD_COMPATIBILITY_TABLE } from '../../lib/bloodCompatibility';
 
 export default function ProfilePage() {
   const { user, signOut, updateProfile, isDemo } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -32,7 +34,7 @@ export default function ProfilePage() {
     .map(n => n[0])
     .join('')
     .toUpperCase()
-    .slice(0, 2) || '??';
+    .slice(0, 2) || 'DN';
 
   const handleSave = async () => {
     setSaving(true);
@@ -45,21 +47,21 @@ export default function ProfilePage() {
     setSaving(false);
     if (!error) {
       setEditing(false);
-      setSuccessMsg('Profil yangilandi!');
+      setSuccessMsg(t('profile.profile_updated'));
       setTimeout(() => setSuccessMsg(''), 3000);
     }
   };
 
   const handleStatusChange = async (status: DonorStatus) => {
     await updateProfile({ donor_status: status });
-    setSuccessMsg('Holat yangilandi!');
+    setSuccessMsg(t('profile.status_updated'));
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   const handleTrackChange = async (track: UserTrack) => {
     const isDonor = track === 'donor';
     await updateProfile({ user_track: track, is_donor: isDonor });
-    setSuccessMsg(`Asosiy yo'nalishingiz o'zgartirildi: ${track === 'medication' ? 'DORI' : track === 'donor' ? 'QON BERISH' : 'QON OLISH'}`);
+    setSuccessMsg(t('profile.status_updated'));
     setTimeout(() => setSuccessMsg(''), 3500);
   };
 
@@ -69,17 +71,17 @@ export default function ProfilePage() {
   };
 
   const statusConfig = {
-    available: { emoji: '🟢', label: DONOR_STATUS_LABELS.available, color: 'var(--color-success)' },
-    busy: { emoji: '🟡', label: DONOR_STATUS_LABELS.busy, color: 'var(--color-warning)' },
-    unavailable: { emoji: '⚪', label: DONOR_STATUS_LABELS.unavailable, color: 'var(--color-text-secondary)' },
+    available: { emoji: '🟢', label: t('profile.status_available'), color: 'var(--color-success)' },
+    busy: { emoji: '🟡', label: t('profile.status_busy'), color: 'var(--color-warning)' },
+    unavailable: { emoji: '⚪', label: t('profile.status_unavailable'), color: 'var(--color-text-secondary)' },
   };
 
   return (
     <div>
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ fontSize: '1.25rem' }}>👤 Mening profilim</h1>
-          {isDemo && <span className="badge badge-blue">Demo rejim</span>}
+          <h1 style={{ fontSize: '1.25rem' }}>👤 {t('profile.page_title')}</h1>
+          {isDemo && <span className="badge badge-blue">{t('profile.demo_badge')}</span>}
         </div>
       </div>
 
@@ -111,39 +113,39 @@ export default function ProfilePage() {
                 {editing ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     <div className="form-group">
-                      <label className="form-label">Ism va familiya</label>
+                      <label className="form-label">{t('profile.full_name')}</label>
                       <input className="form-input" type="text" value={editData.full_name}
                         onChange={e => setEditData(p => ({ ...p, full_name: e.target.value }))} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group">
-                        <label className="form-label">Qon guruhi</label>
+                        <label className="form-label">{t('common.blood_group')}</label>
                         <select className="form-select" value={editData.blood_group}
                           onChange={e => setEditData(p => ({ ...p, blood_group: e.target.value as BloodGroup }))}>
-                          <option value="">Tanlang</option>
+                          <option value="">{t('auth.select_blood_group')}</option>
                           {BLOOD_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                         </select>
                       </div>
                       <div className="form-group">
-                        <label className="form-label">Telefon</label>
+                        <label className="form-label">{t('profile.phone')}</label>
                         <input className="form-input" type="tel" value={editData.phone}
                           onChange={e => setEditData(p => ({ ...p, phone: e.target.value }))} />
                       </div>
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Hudud</label>
+                      <label className="form-label">{t('profile.region')}</label>
                       <select className="form-select" value={editData.region}
                         onChange={e => setEditData(p => ({ ...p, region: e.target.value }))}>
-                        <option value="">Tanlang</option>
+                        <option value="">{t('auth.select_region')}</option>
                         {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving} id="btn-save-profile">
-                        {saving ? 'Saqlanmoqda...' : <><Check size={16} /> Saqlash</>}
+                        {saving ? t('common.loading') : <><Check size={16} /> {t('profile.save_btn')}</>}
                       </button>
                       <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}>
-                        <X size={16} /> Bekor
+                        <X size={16} /> {t('profile.cancel_btn')}
                       </button>
                     </div>
                   </div>
@@ -177,7 +179,7 @@ export default function ProfilePage() {
                     <button className="btn btn-secondary btn-sm" style={{ marginTop: '12px' }}
                       onClick={() => { setEditing(true); setEditData({ full_name: user.full_name, phone: user.phone || '', blood_group: user.blood_group || '', region: user.region || '' }); }}
                       id="btn-edit-profile">
-                      <Edit size={16} /> Profilni tahrirlash
+                      <Edit size={16} /> {t('profile.edit_btn')}
                     </button>
                   </div>
                 )}
@@ -192,19 +194,19 @@ export default function ProfilePage() {
             <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-primary)' }}>
               {user.donations_count}
             </div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Donorlik soni</div>
+            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{t('profile.donations_stat')}</div>
           </div>
           <div className="card card-body" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-success)' }}>
               {user.helped_count}
             </div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Yordam berilgan</div>
+            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{t('profile.helped_stat')}</div>
           </div>
           <div className="card card-body" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-info)' }}>
               {user.blood_group || '—'}
             </div>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Qon guruhi</div>
+            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{t('common.blood_group')}</div>
           </div>
         </div>
 
@@ -214,9 +216,8 @@ export default function ProfilePage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-navy)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Sparkles size={18} color="#DC2626" />
-                Mening asosiy yo'nalishim
+                {t('profile.track_title')}
               </h3>
-              <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Istalgan vaqtda o'zgartirishingiz mumkin</span>
             </div>
 
             <div style={{
@@ -244,10 +245,10 @@ export default function ProfilePage() {
                   <div style={{ background: '#D1FAE5', padding: '6px', borderRadius: '8px', display: 'flex' }}>
                     <Pill size={18} color="#059669" />
                   </div>
-                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>DORI</strong>
+                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>{t('profile.track_medication')}</strong>
                 </div>
                 <p style={{ fontSize: '0.78rem', color: '#475569', margin: 0 }}>
-                  Dorilar katalogi, qabul qilish jadvallari va xavfsiz eslatmalar.
+                  {t('auth.track_medication_desc')}
                 </p>
               </div>
 
@@ -271,10 +272,10 @@ export default function ProfilePage() {
                   <div style={{ background: '#FEE2E2', padding: '6px', borderRadius: '8px', display: 'flex' }}>
                     <HeartHandshake size={18} color="#DC2626" />
                   </div>
-                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>QON BERISH</strong>
+                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>{t('profile.track_donor')}</strong>
                 </div>
                 <p style={{ fontSize: '0.78rem', color: '#475569', margin: 0 }}>
-                  Donor profili, topshirishga tayyorlik holati va muhtojlarga yordam.
+                  {t('auth.track_donor_desc')}
                 </p>
               </div>
 
@@ -298,10 +299,10 @@ export default function ProfilePage() {
                   <div style={{ background: '#DBEAFE', padding: '6px', borderRadius: '8px', display: 'flex' }}>
                     <Droplets size={18} color="#2563EB" />
                   </div>
-                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>QON OLISH</strong>
+                  <strong style={{ fontSize: '0.95rem', color: '#0F172A' }}>{t('profile.track_recipient')}</strong>
                 </div>
                 <p style={{ fontSize: '0.78rem', color: '#475569', margin: 0 }}>
-                  Shoshilinch qon so'rovi yaratish va mos donorlar bilan bog'lanish.
+                  {t('auth.track_recipient_desc')}
                 </p>
               </div>
             </div>
@@ -317,14 +318,14 @@ export default function ProfilePage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                   <Activity size={20} color="#DC2626" />
                   <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#991B1B' }}>
-                    Tibbiy qon mosligi tahlili — {user.blood_group}
+                    {t('profile.compatibility_title')} — {user.blood_group}
                   </h3>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '12px' }}>
                   <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#166534', marginBottom: '6px' }}>
-                      🩸 Siz qon bera olasiz (Donorlik):
+                      🩸 {t('profile.can_donate_to')}:
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {compat.canGiveTo.map(g => (
@@ -337,7 +338,7 @@ export default function ProfilePage() {
 
                   <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '10px', border: '1px solid #F1F5F9' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1E40AF', marginBottom: '6px' }}>
-                      💉 Sizga qon bera oladi (Qabul qilish):
+                      💉 {t('profile.can_receive_from')}:
                     </div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       {compat.canReceiveFrom.map(g => (
@@ -348,10 +349,6 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </div>
-
-                <p style={{ fontSize: '0.8rem', color: '#64748B', margin: 0, lineHeight: 1.4 }}>
-                  ℹ️ {compat.description}
-                </p>
               </div>
             </div>
           );
@@ -360,7 +357,7 @@ export default function ProfilePage() {
         {/* Donor Status */}
         <div className="card" style={{ marginBottom: '16px' }}>
           <div className="card-body">
-            <h3 style={{ marginBottom: '14px', fontSize: '1rem' }}>🩸 Donor holati</h3>
+            <h3 style={{ marginBottom: '14px', fontSize: '1rem' }}>🩸 {t('profile.donor_status_title')}</h3>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {(Object.keys(statusConfig) as DonorStatus[]).map((s) => {
                 const config = statusConfig[s];
@@ -389,20 +386,17 @@ export default function ProfilePage() {
                 );
               })}
             </div>
-            <p style={{ fontSize: '0.8125rem', marginTop: '10px', color: 'var(--color-text-secondary)' }}>
-              Faqat "Tayyor" holatdagi donorlar qidiruvda ko'rsatiladi.
-            </p>
           </div>
         </div>
 
         {/* Quick links */}
         <div className="card" style={{ marginBottom: '16px' }}>
           <div className="card-body">
-            <h3 style={{ marginBottom: '14px', fontSize: '1rem' }}>⚡ Tezkor harakatlar</h3>
+            <h3 style={{ marginBottom: '14px', fontSize: '1rem' }}>⚡ {t('common.actions')}</h3>
             {[
-              { icon: <AlertCircle size={18} />, label: 'Mening so\'rovlarim', to: '/request' },
-              { icon: <Clock size={18} />, label: 'Dori eslatmalari', to: '/medications' },
-              { icon: <Heart size={18} />, label: 'Donor xaritasi', to: '/map' },
+              { icon: <AlertCircle size={18} />, label: t('nav.requests'), to: '/request' },
+              { icon: <Clock size={18} />, label: t('nav.medications'), to: '/medications' },
+              { icon: <Heart size={18} />, label: t('nav.map'), to: '/map' },
             ].map(({ icon, label, to }) => (
               <button
                 key={to}
@@ -429,42 +423,7 @@ export default function ProfilePage() {
                 <ChevronRight size={16} color="var(--color-text-secondary)" />
               </button>
             ))}
-
-            {user.is_admin && (
-              <button
-                onClick={() => navigate('/admin')}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 0',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                  color: 'var(--color-info)',
-                  fontFamily: 'inherit',
-                  fontSize: '0.9375rem',
-                  fontWeight: 600,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Shield size={18} />
-                  Admin Panel
-                </div>
-                <ChevronRight size={16} />
-              </button>
-            )}
           </div>
-        </div>
-
-        {/* Privacy note */}
-        <div className="alert alert-info" style={{ marginBottom: '16px', fontSize: '0.8125rem' }}>
-          <AlertCircle size={16} />
-          <span>
-            Siz telefon va email ma'lumotlaringiz faqat tegishli so'rovlar bilan bog'liq foydalanuvchilarga ko'rsatiladi.
-            Ommaviy profilida shaxsiy ma'lumotlar yashiriladi.
-          </span>
         </div>
 
         {/* Sign out */}
@@ -475,7 +434,7 @@ export default function ProfilePage() {
           id="btn-signout"
         >
           <LogOut size={18} />
-          Hisobdan chiqish
+          {t('nav.sign_out')}
         </button>
       </div>
     </div>

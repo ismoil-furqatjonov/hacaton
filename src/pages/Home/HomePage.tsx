@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Droplets, Users, Heart, AlertCircle, ChevronRight,
-  MapPin, Clock, ArrowRight, Zap, Activity
+  MapPin, Clock, ArrowRight, Activity
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { DEMO_STATS, DEMO_BLOOD_REQUESTS, URGENCY_LABELS, URGENCY_COLORS, STATUS_LABELS } from '../../data/demo';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { DEMO_STATS, DEMO_BLOOD_REQUESTS } from '../../data/demo';
 import type { BloodRequest, PlatformStats } from '../../types';
 import { formatDistanceToNow } from 'date-fns';
-import { uz } from 'date-fns/locale';
+import { uz as uzLocale } from 'date-fns/locale/uz';
+import { ru as ruLocale } from 'date-fns/locale/ru';
+import { enUS as enLocale } from 'date-fns/locale/en-US';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 const urgencyBadgeClass: Record<string, string> = {
@@ -20,6 +23,7 @@ const urgencyBadgeClass: Record<string, string> = {
 
 export default function HomePage() {
   const { user, isDemo, enterDemoMode } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [stats, setStats] = useState<PlatformStats>(DEMO_STATS);
   const [requests, setRequests] = useState<BloodRequest[]>(DEMO_BLOOD_REQUESTS.slice(0, 4));
@@ -65,6 +69,12 @@ export default function HomePage() {
     setLoading(false);
   };
 
+  const getDateLocale = () => {
+    if (language === 'ru') return ruLocale;
+    if (language === 'en') return enLocale;
+    return uzLocale;
+  };
+
   return (
     <div>
       {/* Hero */}
@@ -89,17 +99,15 @@ export default function HomePage() {
           <div className="hero-content">
             <div className="hero-badge">
               <span style={{ animation: 'heartbeat 2s infinite', display: 'inline-block' }}>🩸</span>
-              Bir donor — bir hayot
+              {t('home.badge')}
             </div>
 
             <h1 className="hero-title">
-              Kerakli <span>donorni</span><br />
-              kerakli vaqtda toping
+              {t('home.hero_title')}
             </h1>
 
             <p className="hero-subtitle">
-              Muammo donorlarning yo'qligida emas. Muammo — kerakli donorni<br />
-              kerakli vaqtda topishda. DONOR shu ikki insonni AI yordamida bog'laydi.
+              {t('home.hero_subtitle')}
             </p>
 
             <div className="hero-buttons">
@@ -108,7 +116,7 @@ export default function HomePage() {
                 onClick={() => user ? navigate('/request') : navigate('/auth')}
                 id="btn-need-blood"
               >
-                🩸 Menga qon kerak
+                {t('home.btn_need_blood')}
               </button>
               <button
                 className="btn btn-lg"
@@ -121,7 +129,7 @@ export default function HomePage() {
                 onClick={() => user ? navigate('/profile') : navigate('/auth')}
                 id="btn-be-donor"
               >
-                🤝 Donor bo'laman
+                {t('home.btn_become_donor')}
               </button>
               <button
                 className="btn btn-lg"
@@ -134,7 +142,7 @@ export default function HomePage() {
                 onClick={() => navigate('/ai')}
                 id="btn-ai-agent"
               >
-                🤖 AI yordamchi
+                🤖 {t('nav.ai')}
               </button>
               <button
                 className="btn btn-lg"
@@ -147,7 +155,7 @@ export default function HomePage() {
                 onClick={() => navigate('/map')}
                 id="btn-view-map"
               >
-                🗺️ Donor xaritasini ko'rish
+                {t('home.btn_explore_map')}
               </button>
             </div>
 
@@ -157,7 +165,7 @@ export default function HomePage() {
                 style={{ color: 'rgba(255,255,255,0.6)', marginTop: '16px' }}
                 onClick={enterDemoMode}
               >
-                Demo rejimda ko'rish →
+                {t('common.demo_mode')} →
               </button>
             )}
           </div>
@@ -170,33 +178,33 @@ export default function HomePage() {
           {isDemo && (
             <div className="alert alert-info" style={{ marginBottom: '16px' }}>
               <span>ℹ️</span>
-              <span>Demo rejim: quyidagi statistika va so'rovlar sinov ma'lumotlari</span>
+              <span>{t('common.demo_banner')}</span>
             </div>
           )}
           <div className="grid-4">
             <StatCard
               icon={<Users size={24} />}
               iconClass="red"
-              label="Jami donorlar"
+              label={t('home.stat_total_donors')}
               value={stats.total_donors.toLocaleString()}
             />
             <StatCard
               icon={<Activity size={24} />}
               iconClass="green"
-              label="Hozir faol"
+              label={t('home.stat_active_donors')}
               value={stats.active_donors.toString()}
               pulse
             />
             <StatCard
               icon={<Heart size={24} />}
               iconClass="blue"
-              label="Bajarilgan yordamlar"
+              label={t('home.stat_completed_helps')}
               value={stats.completed_helps.toLocaleString()}
             />
             <StatCard
               icon={<AlertCircle size={24} />}
               iconClass="orange"
-              label="Faol shoshilinch so'rovlar"
+              label={t('home.stat_active_requests')}
               value={stats.active_requests.toString()}
             />
           </div>
@@ -217,14 +225,11 @@ export default function HomePage() {
               letterSpacing: '0.05em',
               marginBottom: '8px'
             }}>
-              Platformaning 3 ta asosiy yo'nalishi
+              {t('auth.choose_track_title')}
             </span>
             <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A' }}>
-              Qaysi yo'nalish bo'yicha yordam kerak?
+              {t('home.features_title')}
             </h2>
-            <p style={{ color: '#64748B', fontSize: '0.92rem', maxWidth: '580px', margin: '4px auto 0' }}>
-              Ro'yxatdan o'tgach, o'z yo'nalishingiz bo'yicha qulay va avtomatlashtirilgan xizmatlardan foydalaning.
-            </p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
@@ -251,7 +256,7 @@ export default function HomePage() {
                   background: '#DCFCE7', color: '#16A34A', fontSize: '0.7rem',
                   fontWeight: 800, padding: '3px 8px', borderRadius: '12px'
                 }}>
-                  ✓ Sizning tanlovingiz
+                  ✓ {t('common.active')}
                 </span>
               )}
               <div>
@@ -264,17 +269,17 @@ export default function HomePage() {
                   💊
                 </div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
-                  1. Dori bo'limi
+                  {t('profile.track_medication')}
                 </h3>
                 <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
-                  Rasmiy dori katalogi, shaxsiy qabul jadvali va dozalar eslatmasi. Tibbiy maslahat bilan doimiy nazorat.
+                  {t('auth.track_medication_desc')}
                 </p>
               </div>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 fontWeight: 700, fontSize: '0.86rem', color: '#16A34A'
               }}>
-                Dorilar katalogi va jadvali <ArrowRight size={16} />
+                {t('medications.tab_catalog')} <ArrowRight size={16} />
               </div>
             </div>
 
@@ -301,7 +306,7 @@ export default function HomePage() {
                   background: '#FEE2E2', color: '#DC2626', fontSize: '0.7rem',
                   fontWeight: 800, padding: '3px 8px', borderRadius: '12px'
                 }}>
-                  ✓ Sizning tanlovingiz
+                  ✓ {t('common.active')}
                 </span>
               )}
               <div>
@@ -314,17 +319,17 @@ export default function HomePage() {
                   🩸
                 </div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
-                  2. Qon berish (Donor)
+                  {t('profile.track_donor')}
                 </h3>
                 <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
-                  Donor sifatida ro'yxatdan o'ting, profilingizni faollashtiring, navbatdagi qon topshirish vaqtingizni va shoshilinch ehtiyojlarni kuzating.
+                  {t('auth.track_donor_desc')}
                 </p>
               </div>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 fontWeight: 700, fontSize: '0.86rem', color: '#DC2626'
               }}>
-                Donor profilini ko'rish <ArrowRight size={16} />
+                {t('profile.page_title')} <ArrowRight size={16} />
               </div>
             </div>
 
@@ -351,7 +356,7 @@ export default function HomePage() {
                   background: '#DBEAFE', color: '#2563EB', fontSize: '0.7rem',
                   fontWeight: 800, padding: '3px 8px', borderRadius: '12px'
                 }}>
-                  ✓ Sizning tanlovingiz
+                  ✓ {t('common.active')}
                 </span>
               )}
               <div>
@@ -364,17 +369,17 @@ export default function HomePage() {
                   🔍
                 </div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
-                  3. Qon olish (Retsipiyent)
+                  {t('profile.track_recipient')}
                 </h3>
                 <p style={{ fontSize: '0.88rem', color: '#64748B', lineHeight: '1.5', marginBottom: '16px' }}>
-                  Kerakli qon guruhi va hudud bo'yicha donor qidiring, shoshilinch SOS so'rov oching va mos donorlar bilan tezkor bog'laning.
+                  {t('auth.track_recipient_desc')}
                 </p>
               </div>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: '6px',
                 fontWeight: 700, fontSize: '0.86rem', color: '#2563EB'
               }}>
-                Qon so'rovi va donor qidirish <ArrowRight size={16} />
+                {t('requests.page_title')} <ArrowRight size={16} />
               </div>
             </div>
           </div>
@@ -383,9 +388,9 @@ export default function HomePage() {
         {/* Recent Requests */}
         <section>
           <div className="flex items-center justify-between mb-16">
-            <h2 style={{ fontSize: '1.25rem' }}>🩸 Oxirgi qon so'rovlari</h2>
+            <h2 style={{ fontSize: '1.25rem' }}>🩸 {t('home.recent_requests_title')}</h2>
             <button className="btn btn-secondary btn-sm" onClick={() => navigate('/request')}>
-              Barchasini ko'rish <ChevronRight size={16} />
+              {t('home.view_all_requests')} <ChevronRight size={16} />
             </button>
           </div>
 
@@ -400,7 +405,13 @@ export default function HomePage() {
           ) : (
             <div className="grid-2">
               {requests.map((req) => (
-                <RequestCard key={req.id} request={req} onView={() => navigate('/request')} />
+                <RequestCard
+                  key={req.id}
+                  request={req}
+                  onView={() => navigate('/request')}
+                  t={t}
+                  dateLocale={getDateLocale()}
+                />
               ))}
             </div>
           )}
@@ -408,9 +419,45 @@ export default function HomePage() {
           {requests.length === 0 && !loading && (
             <div style={{ textAlign: 'center', padding: '48px', color: 'var(--color-text-secondary)' }}>
               <Droplets size={48} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
-              <p>Hozircha faol so'rovlar yo'q</p>
+              <p>{t('requests.no_requests_found')}</p>
             </div>
           )}
+        </section>
+
+        {/* How It Works Section */}
+        <section style={{
+          marginTop: '48px',
+          background: 'var(--color-white)',
+          borderRadius: 'var(--radius-xl)',
+          padding: '40px 32px',
+          border: '1px solid var(--color-border)',
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <h2 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+              {t('home.how_it_works_title')}
+            </h2>
+            <p style={{ color: '#64748B', fontSize: '0.92rem' }}>
+              {t('home.how_it_works_subtitle')}
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📝</div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>{t('home.step1_title')}</h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: 1.5 }}>{t('home.step1_desc')}</p>
+            </div>
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🔔</div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>{t('home.step2_title')}</h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: 1.5 }}>{t('home.step2_desc')}</p>
+            </div>
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>❤️</div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>{t('home.step3_title')}</h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748B', lineHeight: 1.5 }}>{t('home.step3_desc')}</p>
+            </div>
+          </div>
         </section>
 
         {/* CTA Section */}
@@ -428,23 +475,23 @@ export default function HomePage() {
         }}>
           <div>
             <div style={{ fontSize: '2rem', marginBottom: '8px' }}>❤️</div>
-            <h3 style={{ marginBottom: '8px' }}>Donor bo'lib hayot saqlang</h3>
-            <p>Har 3 oyda bir marta qon berish — o'rtacha 3 kishini qutqaradi.</p>
+            <h3 style={{ marginBottom: '8px' }}>{t('home.badge')}</h3>
+            <p>{t('home.recent_requests_subtitle')}</p>
           </div>
           <button className="btn btn-primary btn-lg" onClick={() => user ? navigate('/profile') : navigate('/auth')}>
-            Hoziroq boshlang <ArrowRight size={18} />
+            {t('home.btn_become_donor')} <ArrowRight size={18} />
           </button>
         </section>
 
         {/* Quick Actions */}
         <section style={{ marginTop: '32px', paddingBottom: '24px' }}>
-          <h3 style={{ marginBottom: '16px' }}>⚡ Tezkor harakatlar</h3>
+          <h3 style={{ marginBottom: '16px' }}>⚡ {t('common.actions')}</h3>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             {[
-              { label: '🗺️ Donor xaritasi', to: '/map' },
-              { label: '🤖 AI yordamchi', to: '/ai' },
-              { label: '💊 Dori eslatmasi', to: '/medications' },
-              { label: '🩸 Qon so\'rovi', to: '/request' },
+              { label: `🗺️ ${t('nav.map')}`, to: '/map' },
+              { label: `🤖 ${t('nav.ai')}`, to: '/ai' },
+              { label: `💊 ${t('nav.medications')}`, to: '/medications' },
+              { label: `🩸 ${t('nav.requests')}`, to: '/request' },
             ].map(({ label, to }) => (
               <button
                 key={to}
@@ -492,8 +539,20 @@ function StatCard({ icon, iconClass, label, value, pulse }: {
   );
 }
 
-function RequestCard({ request, onView }: { request: BloodRequest; onView: () => void }) {
+function RequestCard({
+  request,
+  onView,
+  t,
+  dateLocale,
+}: {
+  request: BloodRequest;
+  onView: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+  dateLocale: any;
+}) {
   const urgencyClass = urgencyBadgeClass[request.urgency] || 'badge badge-gray';
+  const urgencyKey = `requests.urgency_${request.urgency}`;
+  const statusKey = `requests.status_${request.status}`;
 
   return (
     <div className="card" style={{ borderLeft: '4px solid var(--color-primary)' }}>
@@ -503,15 +562,15 @@ function RequestCard({ request, onView }: { request: BloodRequest; onView: () =>
             <div className="blood-badge">{request.blood_group}</div>
             <div>
               <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>
-                {request.blood_group} qon kerak
+                {request.blood_group} {t('common.blood_group')}
               </div>
               <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                {request.quantity_units} dona
+                {request.quantity_units} {t('common.units')}
               </div>
             </div>
           </div>
           <span className={urgencyClass}>
-            {URGENCY_LABELS[request.urgency]}
+            {t(urgencyKey)}
           </span>
         </div>
 
@@ -522,7 +581,7 @@ function RequestCard({ request, onView }: { request: BloodRequest; onView: () =>
           </div>
           <div className="flex items-center gap-8 text-sm text-secondary">
             <Clock size={14} />
-            <span>{formatDistanceToNow(new Date(request.created_at), { addSuffix: true, locale: uz })}</span>
+            <span>{formatDistanceToNow(new Date(request.created_at), { addSuffix: true, locale: dateLocale })}</span>
           </div>
         </div>
 
@@ -535,10 +594,10 @@ function RequestCard({ request, onView }: { request: BloodRequest; onView: () =>
             background: 'var(--color-bg)',
             color: 'var(--color-text-secondary)',
           }}>
-            {STATUS_LABELS[request.status]}
+            {t(statusKey)}
           </span>
           <button className="btn btn-primary btn-sm" onClick={onView}>
-            Batafsil <ChevronRight size={14} />
+            {t('common.details')} <ChevronRight size={14} />
           </button>
         </div>
       </div>

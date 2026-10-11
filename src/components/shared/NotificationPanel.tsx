@@ -1,8 +1,11 @@
 import React from 'react';
 import { Bell, CheckCheck, X } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { formatDistanceToNow } from 'date-fns';
-import { uz } from 'date-fns/locale';
+import { uz as uzLocale } from 'date-fns/locale/uz';
+import { ru as ruLocale } from 'date-fns/locale/ru';
+import { enUS as enLocale } from 'date-fns/locale/en-US';
 
 const typeIcons: Record<string, string> = {
   blood_request: '🩸',
@@ -19,6 +22,13 @@ interface Props {
 
 export default function NotificationPanel({ onClose }: Props) {
   const { notifications, markAsRead, markAllAsRead, unreadCount } = useNotifications();
+  const { t, language } = useLanguage();
+
+  const getDateLocale = () => {
+    if (language === 'ru') return ruLocale;
+    if (language === 'en') return enLocale;
+    return uzLocale;
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -49,14 +59,14 @@ export default function NotificationPanel({ onClose }: Props) {
         }}>
           <div className="flex items-center gap-8">
             <Bell size={20} color="var(--color-primary)" />
-            <span style={{ fontWeight: 700, fontSize: '1.0625rem' }}>Bildirishnomalar</span>
+            <span style={{ fontWeight: 700, fontSize: '1.0625rem' }}>{t('notifications.title')}</span>
             {unreadCount > 0 && (
               <span className="badge badge-red">{unreadCount}</span>
             )}
           </div>
           <div className="flex gap-8">
             {unreadCount > 0 && (
-              <button className="btn btn-ghost btn-sm" onClick={markAllAsRead} title="Hammasini o'qilgan qil">
+              <button className="btn btn-ghost btn-sm" onClick={markAllAsRead} title={t('notifications.mark_all_read')}>
                 <CheckCheck size={16} />
               </button>
             )}
@@ -71,7 +81,7 @@ export default function NotificationPanel({ onClose }: Props) {
           {notifications.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--color-text-secondary)' }}>
               <Bell size={40} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
-              <p>Bildirishnomalar yo'q</p>
+              <p>{t('notifications.empty')}</p>
             </div>
           ) : (
             notifications.map((notif) => (
@@ -100,7 +110,7 @@ export default function NotificationPanel({ onClose }: Props) {
                     {notif.body}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                    {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: uz })}
+                    {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale: getDateLocale() })}
                   </div>
                 </div>
                 {!notif.is_read && (

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
   Building2, Droplets, AlertTriangle, CheckCircle2, Plus,
-  Phone, MapPin, Clock, Search, Shield, Filter, FileText
+  FileText
 } from 'lucide-react';
-import { BLOOD_GROUPS, REGIONS, DEMO_BLOOD_REQUESTS } from '../../data/demo';
+import { BLOOD_GROUPS, DEMO_BLOOD_REQUESTS } from '../../data/demo';
 import type { BloodRequest } from '../../types';
-import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface BloodReserve {
   group: string;
@@ -26,10 +26,9 @@ const INITIAL_RESERVES: BloodReserve[] = [
 ];
 
 export default function HospitalPage() {
-  const { user } = useAuth();
-  const [reserves, setReserves] = useState<BloodReserve[]>(INITIAL_RESERVES);
+  const { t } = useLanguage();
+  const [reserves] = useState<BloodReserve[]>(INITIAL_RESERVES);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
-  const [searchFilter, setSearchFilter] = useState('');
   const [successToast, setSuccessToast] = useState('');
 
   const [form, setForm] = useState({
@@ -43,7 +42,7 @@ export default function HospitalPage() {
   const handleCreateHospitalOrder = (e: React.FormEvent) => {
     e.preventDefault();
     setShowEmergencyModal(false);
-    setSuccessToast(`Shifoxona nomidan ${form.blood_group} guruhi bo'yicha shoshilinch talabnoma e'lon qilindi!`);
+    setSuccessToast(`${form.blood_group} ${t('hospital.order_success')}`);
     setTimeout(() => setSuccessToast(''), 4500);
   };
 
@@ -73,10 +72,10 @@ export default function HospitalPage() {
           </div>
           <div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0F172A' }}>
-              Shifoxona va Qon Banki Kabineti
+              {t('hospital.page_title')}
             </h1>
             <p style={{ fontSize: '0.85rem', color: '#64748B' }}>
-              Klinika qon zaxiralari monitoringi va favqulodda talabnomalar tizimi
+              {t('hospital.page_subtitle')}
             </p>
           </div>
         </div>
@@ -98,7 +97,7 @@ export default function HospitalPage() {
             boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)',
           }}
         >
-          <Plus size={18} /> Favqulodda talabnoma yaratish
+          <Plus size={18} /> {t('hospital.btn_emergency_order')}
         </button>
       </div>
 
@@ -124,7 +123,7 @@ export default function HospitalPage() {
       {/* Blood Bank Reserves Grid */}
       <div style={{ marginBottom: '32px' }}>
         <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0F172A', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Droplets size={20} color="#DC2626" /> Qon Zaxiralari Holati (Real-vaqt)
+          <Droplets size={20} color="#DC2626" /> {t('hospital.reserves_title')}
         </h2>
 
         <div style={{
@@ -135,6 +134,12 @@ export default function HospitalPage() {
           {reserves.map((res) => {
             const isCritical = res.status === 'critical';
             const isLow = res.status === 'low';
+            const statusLabel = isCritical
+              ? t('hospital.status_critical')
+              : isLow
+              ? t('hospital.status_low')
+              : t('hospital.status_adequate');
+
             return (
               <div
                 key={res.group}
@@ -165,16 +170,16 @@ export default function HospitalPage() {
                     background: isCritical ? '#FEE2E2' : isLow ? '#FEF3C7' : '#E0F2FE',
                     color: isCritical ? '#DC2626' : isLow ? '#B45309' : '#0284C7',
                   }}>
-                    {isCritical ? 'Tanqis (Kritik)' : isLow ? 'Kam zaxira' : 'Yetarli'}
+                    {statusLabel}
                   </span>
                 </div>
 
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0F172A', marginBottom: '4px' }}>
-                  {res.unitsAvailable} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#64748B' }}>doza mavjud</span>
+                  {res.unitsAvailable} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#64748B' }}>{t('common.units')}</span>
                 </div>
 
                 <div style={{ fontSize: '0.78rem', color: '#64748B' }}>
-                  Xavfsiz chegara: {res.criticalThreshold} doza
+                  {t('hospital.critical_threshold')}: {res.criticalThreshold} {t('common.units')}
                 </div>
               </div>
             );
@@ -185,7 +190,7 @@ export default function HospitalPage() {
       {/* Hospital Active Emergency Orders */}
       <div>
         <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0F172A', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FileText size={20} color="#0F172A" /> Faol Klinika So'rovlari
+          <FileText size={20} color="#0F172A" /> {t('hospital.recent_hospital_orders')}
         </h2>
 
         <div style={{
@@ -229,7 +234,7 @@ export default function HospitalPage() {
                   <div style={{ fontSize: '0.8rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span>📍 {req.region}</span>
                     <span>•</span>
-                    <span>🩸 {req.quantity_units} doza kerak</span>
+                    <span>🩸 {req.quantity_units} {t('common.units')}</span>
                   </div>
                 </div>
               </div>
@@ -243,7 +248,7 @@ export default function HospitalPage() {
                   fontSize: '0.75rem',
                   fontWeight: 700,
                 }}>
-                  🚨 SOS SHOSHILINCH
+                  🚨 SOS {t('requests.urgency_critical').toUpperCase()}
                 </span>
                 <button
                   style={{
@@ -256,9 +261,9 @@ export default function HospitalPage() {
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
-                  onClick={() => alert(`Koordinatordan tasdiqlandi: ${req.hospital}`)}
+                  onClick={() => alert(`${t('requests.compatible_donors')}: ${req.hospital}`)}
                 >
-                  Donorlarni bog'lash
+                  {t('requests.compatible_donors')}
                 </button>
               </div>
             </div>
@@ -288,16 +293,16 @@ export default function HospitalPage() {
             boxShadow: '0 20px 25px -5px rgba(15, 23, 42, 0.2)',
           }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertTriangle color="#DC2626" /> Shifoxona Favqulodda Talabnomasi
+              <AlertTriangle color="#DC2626" /> {t('hospital.modal_title')}
             </h3>
             <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: '18px' }}>
-              Ushbu so'rov eng yuqori prioritet bilan atrof-muhitdagi mos qon guruhli barcha donorlarga uzatiladi.
+              {t('hospital.modal_desc')}
             </p>
 
             <form onSubmit={handleCreateHospitalOrder}>
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                  Kerakli qon guruhi:
+                  {t('requests.form_blood_group')}:
                 </label>
                 <select
                   value={form.blood_group}
@@ -310,7 +315,7 @@ export default function HospitalPage() {
 
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                  Bo'lim yoki Shoshilinch xona:
+                  {t('hospital.form_department')}:
                 </label>
                 <input
                   type="text"
@@ -322,7 +327,7 @@ export default function HospitalPage() {
 
               <div style={{ marginBottom: '18px' }}>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                  Doza miqdori (birlik):
+                  {t('requests.form_units')}:
                 </label>
                 <input
                   type="number"
@@ -348,7 +353,7 @@ export default function HospitalPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  Bekor qilish
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -362,7 +367,7 @@ export default function HospitalPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  Darhol e'lon qilish
+                  {t('hospital.btn_publish_order')}
                 </button>
               </div>
             </form>

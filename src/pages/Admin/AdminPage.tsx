@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   Shield, Users, Droplets, AlertTriangle, BarChart3,
-  Search, Check, X, Ban, Eye, RefreshCw, Database, Plus, Trash2, CheckCircle2, Lock
+  Database, Trash2, CheckCircle2, Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import ConfirmModal from '../../components/common/ConfirmModal';
-import { DEMO_BLOOD_REQUESTS, DEMO_DONORS, DEMO_STATS } from '../../data/demo';
+import { DEMO_BLOOD_REQUESTS, DEMO_DONORS } from '../../data/demo';
 import {
   getApprovedBloodGroups,
   addBloodGroupAdmin,
@@ -20,10 +21,10 @@ import {
 type Tab = 'stats' | 'users' | 'requests' | 'catalogs' | 'reports';
 
 export default function AdminPage() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('stats');
-  const [search, setSearch] = useState('');
   const [deleteMedId, setDeleteMedId] = useState<string | null>(null);
 
   // Catalogs state
@@ -42,14 +43,14 @@ export default function AdminPage() {
     return (
       <div style={{ padding: '64px 24px', textAlign: 'center' }}>
         <Shield size={48} style={{ opacity: 0.3, margin: '0 auto 16px' }} color="#DC2626" />
-        <h2 style={{ marginBottom: '8px', color: '#0F172A' }}>Ruxsat yo'q</h2>
-        <p style={{ color: '#64748B' }}>Ushbu boshqaruv bo'limiga faqat rasmiy vakolatli adminlar kira oladi.</p>
+        <h2 style={{ marginBottom: '8px', color: '#0F172A' }}>{t('admin.no_permission_title')}</h2>
+        <p style={{ color: '#64748B' }}>{t('admin.no_permission_desc')}</p>
         <button
           className="btn btn-secondary"
           style={{ marginTop: '16px' }}
           onClick={() => navigate('/')}
         >
-          Bosh sahifaga qaytish
+          {t('admin.back_home')}
         </button>
       </div>
     );
@@ -89,16 +90,16 @@ export default function AdminPage() {
     if (!deleteMedId) return;
     deleteMedicationAdmin(deleteMedId, user);
     setMedications(getApprovedMedicationsCatalog());
-    setToastMsg("Dori rasmiy katalogdan o'chirildi.");
+    setToastMsg(t('admin.deleted_med_success'));
     setDeleteMedId(null);
   };
 
   const tabs = [
-    { id: 'stats', label: 'Statistika', icon: <BarChart3 size={18} /> },
-    { id: 'catalogs', label: 'Qon guruhi va Dorilar katalogi', icon: <Database size={18} /> },
-    { id: 'users', label: 'Foydalanuvchilar', icon: <Users size={18} /> },
-    { id: 'requests', label: 'So\'rovlar', icon: <Droplets size={18} /> },
-    { id: 'reports', label: 'Shikoyatlar', icon: <AlertTriangle size={18} /> },
+    { id: 'stats', label: t('admin.tab_stats'), icon: <BarChart3 size={18} /> },
+    { id: 'catalogs', label: t('admin.tab_catalogs'), icon: <Database size={18} /> },
+    { id: 'users', label: t('admin.tab_users'), icon: <Users size={18} /> },
+    { id: 'requests', label: t('admin.tab_requests'), icon: <Droplets size={18} /> },
+    { id: 'reports', label: t('admin.tab_reports'), icon: <AlertTriangle size={18} /> },
   ] as const;
 
   return (
@@ -107,13 +108,13 @@ export default function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
           <Shield size={24} color="#DC2626" />
           <div>
-            <h1 style={{ fontSize: '1.35rem', marginBottom: '2px', color: '#FFFFFF' }}>Admin Boshqaruv Paneli</h1>
+            <h1 style={{ fontSize: '1.35rem', marginBottom: '2px', color: '#FFFFFF' }}>{t('admin.page_title')}</h1>
             <p style={{ fontSize: '0.82rem', margin: 0, color: '#94A3B8' }}>
-              Qon guruhlari va dori vositalarini qat'iy nazorat qilish tizimi
+              {t('admin.no_permission_desc')}
             </p>
           </div>
           <span style={{ background: '#DC2626', color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700 }}>
-            Vakolatli Admin
+            Admin
           </span>
         </div>
 
@@ -154,9 +155,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ============================================================ */}
-        {/* CATALOGS TAB: QON GURUHLARI VA TASDIQLANGAN DORILAR           */}
-        {/* ============================================================ */}
+        {/* CATALOGS TAB */}
         {tab === 'catalogs' && (
           <div>
             <div style={{
@@ -172,7 +171,7 @@ export default function AdminPage() {
             }}>
               <Lock size={18} style={{ flexShrink: 0 }} />
               <div>
-                <strong>Qat'iy xavfsizlik qoidasi:</strong> Tizim yoki AI-agent o'zicha avtomatik qon guruhi yoki dori yarata olmaydi. Faqat ushbu sahifada admin qo'lda kiritgan ma'lumotlar saqlanadi va butun platforma bo'ylab amal qiladi.
+                <strong>{t('common.demo_banner')}</strong>
               </div>
             </div>
 
@@ -180,7 +179,7 @@ export default function AdminPage() {
               {/* 1. Qon guruhlari boshqaruvi */}
               <div style={{ background: '#FFFFFF', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px' }}>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Droplets color="#DC2626" /> Rasmiy Tasdiqlangan Qon Guruhlari
+                  <Droplets color="#DC2626" /> {t('admin.tab_catalogs')}
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
@@ -206,7 +205,7 @@ export default function AdminPage() {
                           <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{bg.description}</div>
                         </div>
                       </div>
-                      <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>● Faol</span>
+                      <span style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>● {t('common.active')}</span>
                     </div>
                   ))}
                 </div>
@@ -214,12 +213,12 @@ export default function AdminPage() {
                 {/* Yangi qon guruhi qo'shish formasi */}
                 <form onSubmit={handleAddBloodGroup} style={{ borderTop: '1px solid #F1F5F9', paddingTop: '16px' }}>
                   <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
-                    + Yangi qon guruhi/subtipini qo'lda kiritish (Admin):
+                    + {t('admin.add_blood_group')}:
                   </h4>
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                     <input
                       type="text"
-                      placeholder="Kodi (Masalan: hh)"
+                      placeholder={t('admin.blood_group_code')}
                       value={newBg.code}
                       onChange={(e) => setNewBg({ ...newBg, code: e.target.value })}
                       style={{ width: '110px', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
@@ -227,25 +226,18 @@ export default function AdminPage() {
                     />
                     <input
                       type="text"
-                      placeholder="Nomi (Masalan: Bombay Fenotipi)"
+                      placeholder={t('admin.blood_group_label')}
                       value={newBg.label}
                       onChange={(e) => setNewBg({ ...newBg, label: e.target.value })}
                       style={{ flex: 1, padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
                       required
                     />
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Qisqacha tavsifi..."
-                    value={newBg.description}
-                    onChange={(e) => setNewBg({ ...newBg, description: e.target.value })}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem', marginBottom: '8px' }}
-                  />
                   <button
                     type="submit"
                     style={{ padding: '8px 14px', borderRadius: '6px', background: '#0F172A', color: 'white', border: 'none', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
                   >
-                    Qon guruhini tasdiqlab saqlash
+                    {t('admin.btn_add')}
                   </button>
                 </form>
               </div>
@@ -253,7 +245,7 @@ export default function AdminPage() {
               {/* 2. Tasdiqlangan dorilar katalogi */}
               <div style={{ background: '#FFFFFF', borderRadius: '14px', border: '1px solid #E2E8F0', padding: '20px' }}>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Database color="#0F172A" /> Rasmiy Dorilar Katalogi (Admin nazorati)
+                  <Database color="#0F172A" /> {t('medications.tab_catalog')}
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', maxHeight: '340px', overflowY: 'auto' }}>
@@ -277,7 +269,7 @@ export default function AdminPage() {
                       <button
                         onClick={() => handleDeleteMedication(m.id)}
                         style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', padding: '4px' }}
-                        title="Katalogdan o'chirish"
+                        title={t('common.delete')}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -288,12 +280,12 @@ export default function AdminPage() {
                 {/* Yangi dori qo'shish formasi */}
                 <form onSubmit={handleAddMedication} style={{ borderTop: '1px solid #F1F5F9', paddingTop: '16px' }}>
                   <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
-                    + Rasmiy katalogga yangi dori kiritish (Admin):
+                    + {t('admin.add_medication')}:
                   </h4>
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                     <input
                       type="text"
-                      placeholder="Dori nomi..."
+                      placeholder={t('admin.med_name')}
                       value={newMed.name}
                       onChange={(e) => setNewMed({ ...newMed, name: e.target.value })}
                       style={{ flex: 1, padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
@@ -301,7 +293,7 @@ export default function AdminPage() {
                     />
                     <input
                       type="text"
-                      placeholder="Kategoriya..."
+                      placeholder={t('admin.med_category')}
                       value={newMed.category}
                       onChange={(e) => setNewMed({ ...newMed, category: e.target.value })}
                       style={{ flex: 1, padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
@@ -311,14 +303,14 @@ export default function AdminPage() {
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                     <input
                       type="text"
-                      placeholder="Standart doza..."
+                      placeholder={t('admin.med_dosage')}
                       value={newMed.standard_dosage}
                       onChange={(e) => setNewMed({ ...newMed, standard_dosage: e.target.value })}
                       style={{ flex: 1, padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
                     />
                     <input
                       type="text"
-                      placeholder="Qarshi ko'rsatmalar..."
+                      placeholder={t('admin.med_contraindications')}
                       value={newMed.contraindications}
                       onChange={(e) => setNewMed({ ...newMed, contraindications: e.target.value })}
                       style={{ flex: 1, padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
@@ -328,7 +320,7 @@ export default function AdminPage() {
                     type="submit"
                     style={{ padding: '8px 14px', borderRadius: '6px', background: '#DC2626', color: 'white', border: 'none', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
                   >
-                    Dorini rasmiy katalogga kiritish
+                    {t('admin.btn_add')}
                   </button>
                 </form>
               </div>
@@ -341,10 +333,10 @@ export default function AdminPage() {
           <div>
             <div className="grid-4" style={{ marginBottom: '24px' }}>
               {[
-                { label: 'Jami donorlar', value: '1,247', color: '#DC2626' },
-                { label: 'Faol donorlar', value: '89', color: '#059669' },
-                { label: 'Jami so\'rovlar', value: '456', color: '#0F172A' },
-                { label: 'Bajarilgan yordamlar', value: '342', color: '#D97706' },
+                { label: t('home.stat_total_donors'), value: '1,247', color: '#DC2626' },
+                { label: t('home.stat_active_donors'), value: '89', color: '#059669' },
+                { label: t('home.stat_active_requests'), value: '456', color: '#0F172A' },
+                { label: t('home.stat_completed_helps'), value: '342', color: '#D97706' },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', textAlign: 'center' }}>
                   <div style={{ fontSize: '2rem', fontWeight: 800, color }}>{value}</div>
@@ -381,11 +373,11 @@ export default function AdminPage() {
                   <span style={{ fontWeight: 800, color: '#DC2626', background: '#FEF2F2', padding: '6px 12px', borderRadius: '8px' }}>{req.blood_group}</span>
                   <div>
                     <div style={{ fontWeight: 700, color: '#0F172A' }}>{req.hospital || req.region}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#64748B' }}>{req.quantity_units} doza kerak • {req.urgency}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748B' }}>{req.quantity_units} {t('common.units')} • {req.urgency}</div>
                   </div>
                 </div>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', background: '#FEF2F2', color: '#DC2626' }}>
-                  Nazoratda
+                  {t('common.active')}
                 </span>
               </div>
             ))}
@@ -396,18 +388,17 @@ export default function AdminPage() {
         {tab === 'reports' && (
           <div style={{ textAlign: 'center', padding: '48px', color: '#64748B' }}>
             <AlertTriangle size={48} style={{ opacity: 0.3, margin: '0 auto 16px' }} />
-            <h3 style={{ marginBottom: '8px', color: '#0F172A' }}>Shikoyatlar yo'q</h3>
-            <p>Hozircha ko'rib chiqish kerak bo'lgan shikoyatlar mavjud emas.</p>
+            <h3 style={{ marginBottom: '8px', color: '#0F172A' }}>{t('common.active')}</h3>
           </div>
         )}
       </div>
 
       <ConfirmModal
         isOpen={!!deleteMedId}
-        title="Dorini katalogdan o'chirish"
-        message="Haqiqatan ham ushbu dorini rasmiy tasdiqlangan katalogdan o'chirmoqchimisiz? Ushbu amal barcha tizim foydalanuvchilariga ta'sir qiladi."
-        confirmText="Ha, o'chirish"
-        cancelText="Bekor qilish"
+        title={t('common.delete')}
+        message={t('common.confirm')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={handleConfirmDeleteMedication}
         onCancel={() => setDeleteMedId(null)}

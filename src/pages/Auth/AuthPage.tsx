@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
-  Eye, EyeOff, Mail, Lock, User, Phone, Droplets, MapPin,
-  AlertCircle, Check, Pill, HeartHandshake, Search, Sparkles
+  Eye, EyeOff, Mail, Lock, User, Phone, Droplets,
+  AlertCircle, Check, Pill, HeartHandshake, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
+import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 import { BLOOD_GROUPS, REGIONS } from '../../data/demo';
 import type { UserTrack } from '../../types';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -14,6 +16,7 @@ type Mode = 'login' | 'register' | 'forgot';
 export default function AuthPage() {
   const navigate = useNavigate();
   const { signIn, signUp, signInWithGoogle, enterDemoMode, isLoading } = useAuth();
+  const { t } = useLanguage();
   const [mode, setMode] = useState<Mode>('login');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +44,7 @@ export default function AuthPage() {
     e.preventDefault();
     setError(''); setSuccess('');
     if (!loginData.email || !loginData.password) {
-      setError("Email va parolni kiriting");
+      setError(t('auth.error_login_credentials'));
       return;
     }
     setSubmitting(true);
@@ -56,19 +59,19 @@ export default function AuthPage() {
     setError(''); setSuccess('');
 
     if (!regData.full_name || !regData.email || !regData.password) {
-      setError("Barcha majburiy maydonlarni to'ldiring");
+      setError(t('auth.error_fill_fields'));
       return;
     }
     if (regData.password.length < 8) {
-      setError("Parol kamida 8 ta belgidan iborat bo'lsin");
+      setError(t('auth.error_password_length'));
       return;
     }
     if (regData.password !== regData.confirmPassword) {
-      setError("Parollar mos kelmadi");
+      setError(t('auth.error_password_match'));
       return;
     }
     if (selectedTrack === 'donor' && !regData.blood_group) {
-      setError("Donor bo'lish uchun qon guruhingizni ko'rsatish shart");
+      setError(t('auth.error_donor_blood_group'));
       return;
     }
 
@@ -85,7 +88,7 @@ export default function AuthPage() {
     setSubmitting(false);
     if (err) { setError(err); return; }
 
-    setSuccess("Ro'yxatdan muvaffaqiyatli o'tdingiz!");
+    setSuccess(t('auth.success_registered'));
 
     // Tanlangan yo'nalish bo'yicha darhol tegishli sahifaga yo'naltirish
     setTimeout(() => {
@@ -121,6 +124,16 @@ export default function AuthPage() {
       position: 'relative',
       overflow: 'hidden',
     }}>
+      {/* Top Right Language Switcher */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        right: '20px',
+        zIndex: 100,
+      }}>
+        <LanguageSwitcher />
+      </div>
+
       {/* Decorations */}
       {[...Array(4)].map((_, i) => (
         <div
@@ -157,7 +170,7 @@ export default function AuthPage() {
         }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '8px', animation: 'heartbeat 3s infinite' }}>🩸</div>
           <h1 style={{ color: 'white', fontSize: '1.75rem', fontWeight: 900 }}>DONOR</h1>
-          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>Bir donor — bir hayot</p>
+          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>{t('nav.slogan')}</p>
         </div>
 
         <div style={{ padding: '32px' }}>
@@ -188,7 +201,7 @@ export default function AuthPage() {
                   fontFamily: 'inherit',
                 }}
               >
-                {m === 'login' ? 'Kirish' : "Ro'yxatdan o'tish"}
+                {m === 'login' ? t('auth.login_tab') : t('auth.register_tab')}
               </button>
             ))}
           </div>
@@ -211,7 +224,7 @@ export default function AuthPage() {
           {!isSupabaseConfigured && (
             <div className="alert alert-warning" style={{ marginBottom: '16px', fontSize: '0.8125rem' }}>
               <AlertCircle size={16} />
-              <span>Supabase sozlanmagan. Demo rejimdan foydalaning yoki .env faylni to'ldiring.</span>
+              <span>{t('common.demo_banner')}</span>
             </div>
           )}
 
@@ -219,7 +232,7 @@ export default function AuthPage() {
           {mode === 'login' && (
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
-                <label className="form-label">Email</label>
+                <label className="form-label">{t('auth.email_label')}</label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={16} style={{
                     position: 'absolute', left: '14px', top: '50%',
@@ -228,7 +241,7 @@ export default function AuthPage() {
                   <input
                     className="form-input"
                     type="email"
-                    placeholder="email@misol.com"
+                    placeholder={t('auth.email_placeholder')}
                     style={{ paddingLeft: '40px' }}
                     value={loginData.email}
                     onChange={e => setLoginData(p => ({ ...p, email: e.target.value }))}
@@ -238,7 +251,7 @@ export default function AuthPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Parol</label>
+                <label className="form-label">{t('auth.password_label')}</label>
                 <div style={{ position: 'relative' }}>
                   <Lock size={16} style={{
                     position: 'absolute', left: '14px', top: '50%',
@@ -247,7 +260,7 @@ export default function AuthPage() {
                   <input
                     className="form-input"
                     type={showPass ? 'text' : 'password'}
-                    placeholder="Parolingiz"
+                    placeholder={t('auth.password_placeholder')}
                     style={{ paddingLeft: '40px', paddingRight: '40px' }}
                     value={loginData.password}
                     onChange={e => setLoginData(p => ({ ...p, password: e.target.value }))}
@@ -271,13 +284,13 @@ export default function AuthPage() {
                     color: 'var(--color-primary)', fontSize: '0.8125rem', fontWeight: 600 }}
                   onClick={() => setMode('forgot')}
                 >
-                  Parolni unutdingizmi?
+                  {t('auth.forgot_password')}
                 </button>
               </div>
 
               <button type="submit" className={`btn btn-primary btn-full ${submitting ? 'btn-loading' : ''}`}
                 disabled={submitting || isLoading} id="btn-login">
-                {submitting ? 'Kirish...' : 'Kirish'}
+                {submitting ? t('common.loading') : t('auth.login_button')}
               </button>
             </form>
           )}
@@ -288,7 +301,7 @@ export default function AuthPage() {
               {/* 3 TA ASOSIY YO'NALISH */}
               <div>
                 <label className="form-label" style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Sparkles size={16} color="#DC2626" /> Asosiy yo'nalishingizni tanlang:
+                  <Sparkles size={16} color="#DC2626" /> {t('auth.choose_track_title')}
                 </label>
                 <div style={{
                   display: 'grid',
@@ -316,10 +329,10 @@ export default function AuthPage() {
                       <div style={{ background: '#D1FAE5', padding: '6px', borderRadius: '8px', display: 'flex' }}>
                         <Pill size={18} color="#059669" />
                       </div>
-                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>DORI</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>{t('profile.track_medication')}</div>
                     </div>
                     <p style={{ fontSize: '0.74rem', color: '#475569', margin: 0, lineHeight: 1.35 }}>
-                      Dorilar katalogi, qabul qilish jadvali va eslatmalar olish.
+                      {t('auth.track_medication_desc')}
                     </p>
                   </div>
 
@@ -343,10 +356,10 @@ export default function AuthPage() {
                       <div style={{ background: '#FEE2E2', padding: '6px', borderRadius: '8px', display: 'flex' }}>
                         <HeartHandshake size={18} color="#DC2626" />
                       </div>
-                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>QON BERISH</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>{t('profile.track_donor')}</div>
                     </div>
                     <p style={{ fontSize: '0.74rem', color: '#475569', margin: 0, lineHeight: 1.35 }}>
-                      Donor bo'lish, qon topshirishga tayyorlik va insonlarga yordam.
+                      {t('auth.track_donor_desc')}
                     </p>
                   </div>
 
@@ -370,42 +383,39 @@ export default function AuthPage() {
                       <div style={{ background: '#DBEAFE', padding: '6px', borderRadius: '8px', display: 'flex' }}>
                         <Droplets size={18} color="#2563EB" />
                       </div>
-                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>QON OLISH</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A' }}>{t('profile.track_recipient')}</div>
                     </div>
                     <p style={{ fontSize: '0.74rem', color: '#475569', margin: 0, lineHeight: 1.35 }}>
-                      Shoshilinch qon so'rovi yaratish va mos donorlar bilan bog'lanish.
+                      {t('auth.track_recipient_desc')}
                     </p>
                   </div>
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#64748B', marginBottom: '8px' }}>
-                  ℹ️ Tanlangan yo'nalishni keyinchalik Profil sozlamalaridan xohlagan paytda o'zgartira olasiz.
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Ism va familiya *</label>
+                <label className="form-label">{t('auth.full_name_label')} *</label>
                 <div style={{ position: 'relative' }}>
                   <User size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
-                  <input className="form-input" type="text" placeholder="Ism Familiya" style={{ paddingLeft: '40px' }}
+                  <input className="form-input" type="text" placeholder={t('auth.full_name_placeholder')} style={{ paddingLeft: '40px' }}
                     value={regData.full_name} onChange={e => setRegData(p => ({ ...p, full_name: e.target.value }))} id="reg-name" required />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
-                  <label className="form-label">Email *</label>
+                  <label className="form-label">{t('auth.email_label')} *</label>
                   <div style={{ position: 'relative' }}>
                     <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
-                    <input className="form-input" type="email" placeholder="email@misol.com" style={{ paddingLeft: '40px' }}
+                    <input className="form-input" type="email" placeholder={t('auth.email_placeholder')} style={{ paddingLeft: '40px' }}
                       value={regData.email} onChange={e => setRegData(p => ({ ...p, email: e.target.value }))} id="reg-email" required />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Telefon</label>
+                  <label className="form-label">{t('auth.phone_label')}</label>
                   <div style={{ position: 'relative' }}>
                     <Phone size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
-                    <input className="form-input" type="tel" placeholder="+998901234567" style={{ paddingLeft: '40px' }}
+                    <input className="form-input" type="tel" placeholder={t('auth.phone_placeholder')} style={{ paddingLeft: '40px' }}
                       value={regData.phone} onChange={e => setRegData(p => ({ ...p, phone: e.target.value }))} id="reg-phone" />
                   </div>
                 </div>
@@ -414,29 +424,29 @@ export default function AuthPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
                   <label className="form-label">
-                    {selectedTrack === 'donor' ? 'Qon guruhi * (Donorlik uchun)' : selectedTrack === 'recipient' ? 'Kerakli qon guruhi' : 'Qon guruhi (Ixtiyoriy)'}
+                    {t('auth.blood_group_label')} {selectedTrack === 'donor' ? '*' : ''}
                   </label>
                   <select className="form-select" value={regData.blood_group}
                     onChange={e => setRegData(p => ({ ...p, blood_group: e.target.value }))} id="reg-blood-group" required={selectedTrack === 'donor'}>
-                    <option value="">Tanlang</option>
+                    <option value="">{t('auth.select_blood_group')}</option>
                     {BLOOD_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Hudud</label>
+                  <label className="form-label">{t('auth.region_label')}</label>
                   <select className="form-select" value={regData.region}
                     onChange={e => setRegData(p => ({ ...p, region: e.target.value }))} id="reg-region">
-                    <option value="">Tanlang</option>
+                    <option value="">{t('auth.select_region')}</option>
                     {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Parol *</label>
+                <label className="form-label">{t('auth.password_label')} *</label>
                 <div style={{ position: 'relative' }}>
                   <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
-                  <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="Kamida 8 ta belgi"
+                  <input className="form-input" type={showPass ? 'text' : 'password'} placeholder={t('auth.password_placeholder')}
                     style={{ paddingLeft: '40px', paddingRight: '40px' }}
                     value={regData.password} onChange={e => setRegData(p => ({ ...p, password: e.target.value }))} id="reg-password" required />
                   <button type="button" onClick={() => setShowPass(p => !p)}
@@ -447,14 +457,14 @@ export default function AuthPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Parolni tasdiqlang *</label>
-                <input className="form-input" type="password" placeholder="Parolni qaytaring"
+                <label className="form-label">{t('auth.confirm_password_label')} *</label>
+                <input className="form-input" type="password" placeholder={t('auth.confirm_password_placeholder')}
                   value={regData.confirmPassword} onChange={e => setRegData(p => ({ ...p, confirmPassword: e.target.value }))} id="reg-confirm-password" required />
               </div>
 
               <button type="submit" className={`btn btn-primary btn-full ${submitting ? 'btn-loading' : ''}`}
                 disabled={submitting} id="btn-register">
-                {submitting ? "Ro'yxatdan o'tilmoqda..." : "Ro'yxatdan o'tish"}
+                {submitting ? t('common.loading') : t('auth.register_button')}
               </button>
             </form>
           )}
@@ -462,13 +472,13 @@ export default function AuthPage() {
           {/* Forgot password */}
           {mode === 'forgot' && (
             <div style={{ textAlign: 'center' }}>
-              <p style={{ marginBottom: '20px' }}>Parolni tiklash uchun email manzilingizni kiriting.</p>
+              <p style={{ marginBottom: '20px' }}>{t('auth.send_reset_link')}</p>
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <input className="form-input" type="email" placeholder="Email manzilingiz" />
+                <input className="form-input" type="email" placeholder={t('auth.email_placeholder')} />
               </div>
-              <button className="btn btn-primary btn-full">Parolni tiklash</button>
+              <button className="btn btn-primary btn-full">{t('auth.reset_password')}</button>
               <button className="btn btn-ghost btn-sm" style={{ marginTop: '12px' }} onClick={() => setMode('login')}>
-                ← Kirishga qaytish
+                ← {t('auth.back_to_login')}
               </button>
             </div>
           )}
@@ -478,7 +488,7 @@ export default function AuthPage() {
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
                 <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--color-border)' }} />
-                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>yoki</span>
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>{t('auth.or_divider')}</span>
                 <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--color-border)' }} />
               </div>
 
@@ -486,13 +496,13 @@ export default function AuthPage() {
               <button className="btn btn-secondary btn-full" onClick={handleGoogle} id="btn-google-login"
                 style={{ marginBottom: '12px' }}>
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width={18} />
-                Google orqali kirish
+                {t('auth.google_login')}
               </button>
 
               {/* Demo */}
               <button className="btn btn-ghost btn-full" onClick={handleDemo} id="btn-demo"
                 style={{ color: 'var(--color-info)' }}>
-                🔵 Demo rejimda ko'rish
+                {t('auth.demo_login_button')}
               </button>
             </>
           )}
