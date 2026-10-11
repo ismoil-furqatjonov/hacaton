@@ -22,7 +22,7 @@ type Tab = 'stats' | 'users' | 'requests' | 'catalogs' | 'reports';
 
 export default function AdminPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('stats');
   const [deleteMedId, setDeleteMedId] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export default function AdminPage() {
   const handleAddBloodGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     setToastMsg(''); setToastError('');
-    const res = await addBloodGroupAdmin(newBg, user);
+    const res = await addBloodGroupAdmin(newBg, user, language);
     if (res.success) {
       setToastMsg(res.message);
       setBloodGroups(getApprovedBloodGroups());
@@ -72,7 +72,7 @@ export default function AdminPage() {
   const handleAddMedication = async (e: React.FormEvent) => {
     e.preventDefault();
     setToastMsg(''); setToastError('');
-    const res = await addMedicationAdmin(newMed, user);
+    const res = await addMedicationAdmin(newMed, user, language);
     if (res.success) {
       setToastMsg(res.message);
       setMedications(getApprovedMedicationsCatalog());
@@ -86,11 +86,11 @@ export default function AdminPage() {
     setDeleteMedId(id);
   };
 
-  const handleConfirmDeleteMedication = () => {
+  const handleConfirmDeleteMedication = async () => {
     if (!deleteMedId) return;
-    deleteMedicationAdmin(deleteMedId, user);
+    const res = await deleteMedicationAdmin(deleteMedId, user, language);
     setMedications(getApprovedMedicationsCatalog());
-    setToastMsg(t('admin.deleted_med_success'));
+    setToastMsg(res.message || t('admin.deleted_med_success'));
     setDeleteMedId(null);
   };
 

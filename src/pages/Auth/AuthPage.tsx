@@ -15,7 +15,7 @@ type Mode = 'login' | 'register' | 'forgot';
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, signUp, signInWithGoogle, enterDemoMode, isLoading } = useAuth();
+  const { signIn, signUp, signInWithGoogle, resetPassword, enterDemoMode, isLoading } = useAuth();
   const { t } = useLanguage();
   const [mode, setMode] = useState<Mode>('login');
   const [showPass, setShowPass] = useState(false);
@@ -28,6 +28,7 @@ export default function AuthPage() {
 
   // Login form
   const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [forgotEmail, setForgotEmail] = useState('');
 
   // Register form
   const [regData, setRegData] = useState({
@@ -111,6 +112,24 @@ export default function AuthPage() {
   const handleDemo = () => {
     enterDemoMode();
     navigate('/');
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (!forgotEmail) {
+      setError(t('auth.error_login_credentials'));
+      return;
+    }
+    setSubmitting(true);
+    const { error: err } = await resetPassword(forgotEmail);
+    setSubmitting(false);
+    if (err) {
+      setError(err);
+    } else {
+      setSuccess(t('auth.send_reset_link'));
+    }
   };
 
   return (
@@ -471,16 +490,34 @@ export default function AuthPage() {
 
           {/* Forgot password */}
           {mode === 'forgot' && (
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ marginBottom: '20px' }}>{t('auth.send_reset_link')}</p>
+            <form onSubmit={handleForgotPassword} style={{ textAlign: 'center' }}>
+              <p style={{ marginBottom: '20px', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>{t('auth.send_reset_link')}</p>
               <div className="form-group" style={{ marginBottom: '16px' }}>
-                <input className="form-input" type="email" placeholder={t('auth.email_placeholder')} />
+                <input
+                  className="form-input"
+                  type="email"
+                  placeholder={t('auth.email_placeholder')}
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  required
+                />
               </div>
-              <button className="btn btn-primary btn-full">{t('auth.reset_password')}</button>
-              <button className="btn btn-ghost btn-sm" style={{ marginTop: '12px' }} onClick={() => setMode('login')}>
+              <button
+                type="submit"
+                className={`btn btn-primary btn-full ${submitting ? 'btn-loading' : ''}`}
+                disabled={submitting}
+              >
+                {submitting ? t('common.loading') : t('auth.reset_password')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ marginTop: '12px' }}
+                onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+              >
                 ← {t('auth.back_to_login')}
               </button>
-            </div>
+            </form>
           )}
 
           {/* Divider */}

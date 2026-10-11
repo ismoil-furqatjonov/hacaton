@@ -117,7 +117,7 @@ export default function AIAgentPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-      const res = await processUserMessage(query, agentContext, user, controller.signal);
+      const res = await processUserMessage(query, agentContext, user, controller.signal, language);
       clearTimeout(timeoutId);
 
       setAgentContext(prev => ({

@@ -35,8 +35,8 @@ export default function HospitalPage() {
     blood_group: 'O-',
     units: 3,
     urgency: 'critical',
-    department: 'Reanimatsiya va Shoshilinch jarrohlik',
-    patient_diagnosis: 'O\'tkir qon yo\'qotish, operatsiyadan oldingi holat',
+    department: '',
+    patient_diagnosis: '',
   });
 
   const handleCreateHospitalOrder = (e: React.FormEvent) => {
@@ -261,7 +261,10 @@ export default function HospitalPage() {
                     fontWeight: 600,
                     cursor: 'pointer',
                   }}
-                  onClick={() => alert(`${t('requests.compatible_donors')}: ${req.hospital}`)}
+                  onClick={() => {
+                    setSuccessToast(`${t('requests.compatible_donors')}: ${req.hospital}`);
+                    setTimeout(() => setSuccessToast(''), 4500);
+                  }}
                 >
                   {t('requests.compatible_donors')}
                 </button>

@@ -76,7 +76,7 @@ export default function MedicationsPage() {
         setSuccessMsg(t('medications.notifications_enabled'));
         new Notification("DONOR Platform", {
           body: t('medications.page_subtitle'),
-          icon: "/favicon.ico",
+          icon: "/donor-icon.svg",
         });
       }
     } catch {

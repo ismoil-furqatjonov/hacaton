@@ -12,6 +12,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   updateProfile: (data: Partial<Profile>) => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
   enterDemoMode: () => void;
 }
 
@@ -233,6 +234,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message || null };
   };
 
+  const resetPassword = async (email: string) => {
+    if (!email) return { error: 'Iltimos, emailingizni kiriting' };
+    if (!isSupabaseConfigured || !supabase) {
+      return { error: null };
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`,
+    });
+    return { error: error?.message || null };
+  };
+
   const enterDemoMode = () => {
     localStorage.removeItem('donor_signed_out');
     localStorage.setItem('donor_demo_mode', 'true');
@@ -251,6 +263,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       signInWithGoogle,
       updateProfile,
+      resetPassword,
       enterDemoMode,
     }}>
       {children}

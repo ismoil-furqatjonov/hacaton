@@ -97,19 +97,31 @@ export function isValidBloodGroup(group: string): boolean {
 
 export async function addBloodGroupAdmin(
   newGroup: { code: string; label: string; description: string },
-  currentUser: Profile | null
+  currentUser: Profile | null,
+  lang: 'uz' | 'ru' | 'en' = 'uz'
 ): Promise<{ success: boolean; message: string }> {
   if (!currentUser || !currentUser.is_admin) {
     return {
       success: false,
-      message: "Ruxsat etilmadi: Yangi qon guruhini faqat tizim admini qo'shishi mumkin!",
+      message: lang === 'ru'
+        ? "Доступ запрещен: Только системный администратор может добавлять группы крови!"
+        : lang === 'en'
+        ? "Permission denied: Only system administrators can add blood groups!"
+        : "Ruxsat etilmadi: Yangi qon guruhini faqat tizim admini qo'shishi mumkin!",
     };
   }
 
   const code = newGroup.code.trim().toUpperCase() as BloodGroup;
   const current = getApprovedBloodGroups();
   if (current.some(g => g.code === code)) {
-    return { success: false, message: "Ushbu qon guruhi allaqachon mavjud!" };
+    return {
+      success: false,
+      message: lang === 'ru'
+        ? "Эта группа крови уже существует в каталоге!"
+        : lang === 'en'
+        ? "This blood group already exists in the catalog!"
+        : "Ushbu qon guruhi allaqachon mavjud!",
+    };
   }
 
   const newItem: ApprovedBloodGroupItem = {
@@ -137,7 +149,14 @@ export async function addBloodGroupAdmin(
     }
   }
 
-  return { success: true, message: `✅ Yangi qon guruhi (${code}) tasdiqlandi va ro'yxatga kiritildi.` };
+  return {
+    success: true,
+    message: lang === 'ru'
+      ? `✅ Новая группа крови (${code}) успешно подтверждена и добавлена.`
+      : lang === 'en'
+      ? `✅ New blood group (${code}) has been approved and added.`
+      : `✅ Yangi qon guruhi (${code}) tasdiqlandi va ro'yxatga kiritildi.`,
+  };
 }
 
 // ============================================================
@@ -186,21 +205,42 @@ export async function fetchApprovedMedicationsCatalog(): Promise<ApprovedMedicat
 
 export async function addMedicationAdmin(
   med: { name: string; category: string; standard_dosage: string; contraindications: string },
-  currentUser: Profile | null
+  currentUser: Profile | null,
+  lang: 'uz' | 'ru' | 'en' = 'uz'
 ): Promise<{ success: boolean; message: string }> {
   if (!currentUser || !currentUser.is_admin) {
     return {
       success: false,
-      message: "Ruxsat etilmadi: Rasmiy dorilar katalogiga faqat admin qo'lda dori qo'sha oladi!",
+      message: lang === 'ru'
+        ? "Доступ запрещен: Только администратор может добавлять препараты в каталог!"
+        : lang === 'en'
+        ? "Permission denied: Only administrators can add medications to the official catalog!"
+        : "Ruxsat etilmadi: Rasmiy dorilar katalogiga faqat admin qo'lda dori qo'sha oladi!",
     };
   }
 
   const name = med.name.trim();
-  if (!name) return { success: false, message: "Dori nomi bo'sh bo'lishi mumkin emas!" };
+  if (!name) {
+    return {
+      success: false,
+      message: lang === 'ru'
+        ? "Название лекарства не может быть пустым!"
+        : lang === 'en'
+        ? "Medication name cannot be empty!"
+        : "Dori nomi bo'sh bo'lishi mumkin emas!",
+    };
+  }
 
   const current = getApprovedMedicationsCatalog();
   if (current.some(m => m.name.toLowerCase() === name.toLowerCase())) {
-    return { success: false, message: "Ushbu dori katalogda allaqachon mavjud!" };
+    return {
+      success: false,
+      message: lang === 'ru'
+        ? "Этот препарат уже присутствует в каталоге!"
+        : lang === 'en'
+        ? "This medication already exists in the catalog!"
+        : "Ushbu dori katalogda allaqachon mavjud!",
+    };
   }
 
   const newItem: ApprovedMedicationItem = {
@@ -231,15 +271,30 @@ export async function addMedicationAdmin(
     }
   }
 
-  return { success: true, message: `✅ Dori (${name}) rasmiy katalogga kiritildi.` };
+  return {
+    success: true,
+    message: lang === 'ru'
+      ? `✅ Новый препарат (${name}) успешно внесен в официальный каталог.`
+      : lang === 'en'
+      ? `✅ Medication (${name}) has been officially added to catalog.`
+      : `✅ Dori (${name}) rasmiy katalogga kiritildi.`,
+  };
 }
 
 export async function deleteMedicationAdmin(
   id: string,
-  currentUser: Profile | null
+  currentUser: Profile | null,
+  lang: 'uz' | 'ru' | 'en' = 'uz'
 ): Promise<{ success: boolean; message: string }> {
   if (!currentUser || !currentUser.is_admin) {
-    return { success: false, message: "Faqat admin dorini katalogdan o'chira oladi!" };
+    return {
+      success: false,
+      message: lang === 'ru'
+        ? "Только администратор может удалять препараты из каталога!"
+        : lang === 'en'
+        ? "Only administrators can remove medications from the catalog!"
+        : "Faqat admin dorini katalogdan o'chira oladi!",
+    };
   }
 
   const current = getApprovedMedicationsCatalog();
@@ -254,5 +309,12 @@ export async function deleteMedicationAdmin(
     }
   }
 
-  return { success: true, message: "Dori katalogdan o'chirildi." };
+  return {
+    success: true,
+    message: lang === 'ru'
+      ? "Препарат успешно удален из каталога."
+      : lang === 'en'
+      ? "Medication removed from catalog."
+      : "Dori katalogdan o'chirildi.",
+  };
 }

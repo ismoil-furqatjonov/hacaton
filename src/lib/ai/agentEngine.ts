@@ -38,7 +38,7 @@ export interface AgentResponse {
 }
 
 // 1. Tilni aniqlash (Uzbek, Russian, English)
-export function detectLanguage(text: string): DetectedLanguage {
+export function detectLanguage(text: string, preferred?: DetectedLanguage): DetectedLanguage {
   const lower = text.toLowerCase();
   
   // Russian markers (Cyrillic or common Russian words)
@@ -48,11 +48,19 @@ export function detectLanguage(text: string): DetectedLanguage {
   }
 
   // English markers
-  const englishWords = ['blood', 'donor', 'need', 'help', 'search', 'how', 'where', 'eligible', 'find', 'urgent', 'hospital'];
+  const englishWords = [
+    'blood', 'donor', 'need', 'help', 'search', 'how', 'where', 'eligible',
+    'find', 'urgent', 'hospital', 'what', 'who', 'rule', 'rules', 'requirements',
+    'can', 'hello', 'hi', 'prepare', 'compatibility', 'compatible'
+  ];
   const words = lower.split(/\s+/);
   const enCount = words.filter(w => englishWords.includes(w)).length;
   if (enCount >= 1 && !lower.includes('kerak') && !lower.includes('qon') && !lower.includes('bormi')) {
     return 'en';
+  }
+
+  if (preferred) {
+    return preferred;
   }
 
   return 'uz'; // Default: Uzbek
@@ -100,13 +108,14 @@ export async function processUserMessage(
   message: string,
   context: AgentContext,
   userProfile: Profile | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  preferredLanguage?: DetectedLanguage
 ): Promise<AgentResponse> {
   if (signal?.aborted) {
     throw new Error('So\'rov bekor qilindi (Timeout)');
   }
 
-  const lang = detectLanguage(message);
+  const lang = detectLanguage(message, preferredLanguage);
   const lower = message.toLowerCase();
   const disclaimer = KNOWLEDGE_METADATA.complianceDisclaimer;
 
@@ -154,7 +163,7 @@ export async function processUserMessage(
     lower.includes('совместим') || lower.includes('кому под') ||
     lower.includes('compatib') || lower.includes('who can');
 
-  if (isCompatQuery || (bgMatch && (lower.includes('guruh') || lower.includes('групп')))) {
+  if (isCompatQuery || (bgMatch && (lower.includes('guruh') || lower.includes('групп') || lower.includes('group')))) {
     const targetGroup = bgMatch || context.selectedBloodGroup || (userProfile?.blood_group as BloodGroup) || 'O+';
     const compat = BLOOD_COMPATIBILITY_MATRIX[targetGroup];
 
@@ -171,6 +180,23 @@ export async function processUserMessage(
           actions: [
             { label: '🗺️ Найти на карте', action: 'navigate', data: { path: '/map' } },
             { label: '🚨 Создать заявку', action: 'navigate', data: { path: '/request' } },
+          ],
+          disclaimer,
+        };
+      }
+
+      if (lang === 'en') {
+        return {
+          language: 'en',
+          response: `🩸 **Blood Group Compatibility for ${compat.group}:**\n\n` +
+            `✅ **Can donate red cells to:** ${compat.canDonateTo.join(', ')}\n` +
+            `📥 **Can receive red cells from:** ${compat.canReceiveFrom.join(', ')}\n\n` +
+            (compat.isUniversalDonor ? '🌟 *Universal red cell donor (compatible with all groups)!*\n' : '') +
+            (compat.isUniversalRecipient ? '🌟 *Universal recipient (can receive from all groups)!*\n' : '') +
+            `\nWould you like to search donors or view the map?`,
+          actions: [
+            { label: `🔍 Search ${targetGroup} Donors`, action: 'search_donors', data: { blood_group: targetGroup } },
+            { label: '🗺️ Open Donor Map', action: 'navigate', data: { path: '/map' } },
           ],
           disclaimer,
         };
@@ -220,6 +246,25 @@ export async function processUserMessage(
       };
     }
 
+    if (lang === 'en') {
+      return {
+        language: 'en',
+        response: `📋 **Requirements & Preparation for Blood Donation (Ministry of Health):**\n\n` +
+          `• **Age:** 18 to 65 years\n` +
+          `• **Weight:** At least 50 kg\n` +
+          `• **Donation Interval:** Every 60 days for men, 90 days for women.\n\n` +
+          `🥣 **Preparation Rules:**\n` +
+          `• 48 hours before: avoid all alcohol.\n` +
+          `• 24 hours before: avoid fatty, fried, and dairy products.\n` +
+          `• On donation morning: sweet tea and a light meal; don't forget your passport/ID!`,
+        actions: [
+          { label: '❤️ Become a Donor (Profile)', action: 'navigate', data: { path: '/profile' } },
+          { label: '🏥 Blood Centers List', action: 'show_centers' },
+        ],
+        disclaimer,
+      };
+    }
+
     return {
       language: 'uz',
       response: `📋 **Qon donorligiga tayyorgarlik va talablar (SSV mezonlari):**\n\n` +
@@ -250,11 +295,12 @@ export async function processUserMessage(
     const region = extractRegion(message) || context.selectedRegion || userProfile?.region || 'Toshkent shahri';
 
     if (!group) {
-      // Aniqlashtiruvchi savol
       return {
         language: lang,
         response: lang === 'ru'
           ? `🩸 Какая группа крови требуется? (Например: A+, B+, O+, AB+)`
+          : lang === 'en'
+          ? `🩸 Which blood group is required? (e.g. A+, B+, O+, AB+)`
           : `🩸 Qaysi qon guruhi kerak? Aniqlashtirib bersangiz, darhol eng yaqin donorlarni topib beraman. (Masalan: O+, A+, B+, AB+)`,
         actions: [
           { label: 'O(I)+', action: 'select_blood_group', data: { group: 'O+' } },
@@ -266,7 +312,6 @@ export async function processUserMessage(
       };
     }
 
-    // Donorlarni qidirish va so'rov tayyorlash
     const searchRes = await toolSearchDonors({ blood_group: group, region });
     const prepRes = prepareBloodRequestCreation({
       blood_group: group,
@@ -282,8 +327,12 @@ export async function processUserMessage(
       language: lang,
       response: lang === 'ru'
         ? `🚨 **Запрос принят: Группа ${group}, регион ${region}**\n\n` +
-          `🔍 Найдено потенциальных доноров: **${foundCount} человек**.\n` +
+          `🔍 Найдено потенциальных доноров: **${foundCount} человек**.\n\n` +
           `Хотите опубликовать экстренную SOS заявку для уведомления доноров?`
+        : lang === 'en'
+        ? `🚨 **Urgent Request: Group ${group}, Region ${region}**\n\n` +
+          `🔍 Matching potential donors in region: **${foundCount} people**.\n\n` +
+          `Confirm below to broadcast this emergency SOS request and notify nearby donors?`
         : `🚨 **Shoshilinch so'rov: ${group} guruhi, ${region}**\n\n` +
           `🔍 Hududda topilgan mos donorlar: **${foundCount} nafar**.\n\n` +
           `Yaqin atrofdagi barcha donorlarga SMS/bildirishnoma jo'natish uchun quyidagi SOS so'rovni tasdiqlaysizmi?`,
@@ -291,8 +340,8 @@ export async function processUserMessage(
       confirmationData: prepRes.confirmationPayload,
       toolResult: searchRes,
       actions: [
-        { label: '🗺️ Xaritada ko\'rish', action: 'navigate', data: { path: '/map' } },
-        { label: '📋 Barcha so\'rovlar', action: 'navigate', data: { path: '/request' } },
+        { label: lang === 'ru' ? '🗺️ Посмотреть на карте' : lang === 'en' ? '🗺️ View on Map' : '🗺️ Xaritada ko\'rish', action: 'navigate', data: { path: '/map' } },
+        { label: lang === 'ru' ? '📋 Все заявки' : lang === 'en' ? '📋 All Requests' : '📋 Barcha so\'rovlar', action: 'navigate', data: { path: '/request' } },
       ],
       disclaimer,
     };
@@ -317,13 +366,17 @@ export async function processUserMessage(
         ? `🔍 **Результаты поиска доноров:**\n\n` +
           `Найдено активных доноров: **${activeCount}**\n` +
           `Вы можете отправить им запрос или посмотреть на карте.`
+        : lang === 'en'
+        ? `🔍 **Donor Search Results:**\n\n` +
+          `Active donors found: **${activeCount}**\n` +
+          `You can view their locations on the map or send a request.`
         : `🔍 **Donorlar qidiruvi natijasi:**\n\n` +
           `Faol donorlar soni: **${activeCount} nafar**.\n` +
           `Ularning joylashuvini xaritada ko'rishingiz yoki to'g'ridan-to'g'ri so'rov yuborishingiz mumkin.`,
       toolResult: searchRes,
       actions: [
-        { label: '🗺️ Interaktiv xaritani ochish', action: 'navigate', data: { path: '/map' } },
-        { label: '🚨 Qon so\'rovi yaratish', action: 'navigate', data: { path: '/request' } },
+        { label: lang === 'ru' ? '🗺️ Открыть интерактивную карту' : lang === 'en' ? '🗺️ Open Interactive Map' : '🗺️ Interaktiv xaritani ochish', action: 'navigate', data: { path: '/map' } },
+        { label: lang === 'ru' ? '🚨 Создать заявку на кровь' : lang === 'en' ? '🚨 Create Blood Request' : '🚨 Qon so\'rovi yaratish', action: 'navigate', data: { path: '/request' } },
       ],
       disclaimer,
     };
@@ -337,6 +390,30 @@ export async function processUserMessage(
     lower.includes('центр') || lower.includes('станци') || lower.includes('адрес') ||
     lower.includes('center') || lower.includes('clinic')
   ) {
+    if (lang === 'ru') {
+      const listRu = UZBEKISTAN_BLOOD_CENTERS.map(c => `📍 **${c.name}**\n   Адрес: ${c.address}\n   Тел: ${c.phone}\n   График: ${c.workHours}`).join('\n\n');
+      return {
+        language: 'ru',
+        response: `🏥 **Центры переливания крови Узбекистана:**\n\n${listRu}\n\nВ экстренной ситуации всегда звоните по номеру **103**.`,
+        actions: [
+          { label: '🏥 Портал больницы', action: 'navigate', data: { path: '/hospital' } },
+        ],
+        disclaimer,
+      };
+    }
+
+    if (lang === 'en') {
+      const listEn = UZBEKISTAN_BLOOD_CENTERS.map(c => `📍 **${c.name}**\n   Address: ${c.address}\n   Phone: ${c.phone}\n   Hours: ${c.workHours}`).join('\n\n');
+      return {
+        language: 'en',
+        response: `🏥 **Uzbekistan Blood Transfusion Centers:**\n\n${listEn}\n\nIn case of emergency, you can always dial **103**.`,
+        actions: [
+          { label: '🏥 Hospital Portal', action: 'navigate', data: { path: '/hospital' } },
+        ],
+        disclaimer,
+      };
+    }
+
     const list = UZBEKISTAN_BLOOD_CENTERS.map(c => `📍 **${c.name}**\n   Manzil: ${c.address}\n   Tel: ${c.phone}\n   Ish vaqti: ${c.workHours}`).join('\n\n');
     return {
       language: lang,
@@ -354,20 +431,45 @@ export async function processUserMessage(
   // ----------------------------------------------------
   if (
     lower.includes('dori') || lower.includes('tabletka') || lower.includes('preparat') ||
-    lower.includes('лекарств') || lower.includes('таблетк') || lower.includes('препарат') ||
+    lower.includes('лекарств') || lower.includes('таблетк') ||
     lower.includes('medicat') || lower.includes('pill')
   ) {
+    if (lang === 'ru') {
+      return {
+        language: 'ru',
+        response: `💊 **Напоминания о лекарствах и каталог:**\n\n` +
+          `⚠️ **Важное правило безопасности:** AI не назначает лечение и не может автоматически добавлять лекарства в базу данных.\n\n` +
+          `Вы можете вручную составить личный график приёма назначенных врачом препаратов на странице **«Напоминания о лекарствах»**.\n` +
+          `Официальные препараты для доноров регулируются только врачом и администратором.`,
+        actions: [
+          { label: '💊 К напоминаниям о лекарствах', action: 'navigate', data: { path: '/medications' } },
+          { label: '🛡️ Правила донорства', action: 'ask_rules' },
+        ],
+        disclaimer,
+      };
+    }
+
+    if (lang === 'en') {
+      return {
+        language: 'en',
+        response: `💊 **Medication Reminders & Catalog:**\n\n` +
+          `⚠️ **Strict Safety Protocol:** AI cannot prescribe medical treatments or automatically alter official drug records.\n\n` +
+          `You can manually set up personal reminder schedules for doctor-prescribed medications on the **Medications** page.\n` +
+          `The official catalog of approved donor preparations is maintained solely by certified medical specialists and administrators.`,
+        actions: [
+          { label: '💊 Go to Medication Reminders', action: 'navigate', data: { path: '/medications' } },
+          { label: '🛡️ View Donation Rules', action: 'ask_rules' },
+        ],
+        disclaimer,
+      };
+    }
+
     return {
       language: lang,
-      response: lang === 'ru'
-        ? `💊 **Напоминания о лекарствах и каталог:**\n\n` +
-          `⚠️ **Важное правило безопасности:** AI не назначает лечение и не может автоматически добавлять лекарства в базу данных.\n\n` +
-          `Вы можете вручную составить личный график приёма назначенных врачом препаратов на странице **«Dori Eslatmasi»**.\n` +
-          `Официальные препараты для доноров (железо, витамины) регулируются только врачом и администратором.`
-        : `💊 **Dori vositalari va eslatmalar:**\n\n` +
-          `⚠️ **Qat'iy xavfsizlik qoidasi:** AI mustaqil ravishda yangi dori yarata olmaydi, retsept yozmaydi va bazaga o'zicha dori saqlamaydi.\n\n` +
-          `Shifokor tomonidan tayinlangan preparatlarni shaxsan o'zingiz **«Dori eslatmasi»** sahifasida qo'lda jadvalga kiritishingiz mumkin.\n` +
-          `Rasmiy tasdiqlangan dorilar katalogi faqat mutaxassislar va adminlar tomonidan yuritiladi.`,
+      response: `💊 **Dori vositalari va eslatmalar:**\n\n` +
+        `⚠️ **Qat'iy xavfsizlik qoidasi:** AI mustaqil ravishda yangi dori yarata olmaydi, retsept yozmaydi va bazaga o'zicha dori saqlamaydi.\n\n` +
+        `Shifokor tomonidan tayinlangan preparatlarni shaxsan o'zingiz **«Dori eslatmasi»** sahifasida qo'lda jadvalga kiritishingiz mumkin.\n` +
+        `Rasmiy tasdiqlangan dorilar katalogi faqat mutaxassislar va adminlar tomonidan yuritiladi.`,
       actions: [
         { label: '💊 Dori eslatmasiga o\'tish', action: 'navigate', data: { path: '/medications' } },
         { label: '🛡️ Qoidalarni ko\'rish', action: 'ask_rules' },
@@ -379,23 +481,55 @@ export async function processUserMessage(
   // ----------------------------------------------------
   // Platforma va sahifalar bo'yicha yordam (General Platform Help)
   // ----------------------------------------------------
-  return {
-    language: lang,
-    response: lang === 'ru'
-      ? `👋 Здравствуйте! Я интеллектуальный ассистент платформы **DONOR**.\n\n` +
+  if (lang === 'ru') {
+    return {
+      language: 'ru',
+      response: `👋 Здравствуйте! Я интеллектуальный ассистент платформы **DONOR**.\n\n` +
         `Чем я могу вам помочь?\n` +
-        `• Поиск доноров крови по вашей группе и региону\n` +
-        `• Создание экстренной SOS заявки\n` +
-        `• Проверка совместимости групп крови\n` +
-        `• Консультация по подготовке к донорству (стандарты Минздрава)\n` +
-        `• Работа с картой доноров, порталом больницы и напоминаниями о лекарствах.`
-      : `👋 Assalomu alaykum! Men **DONOR** platformasining rasmiy intellektual yordamchisiman.\n\n` +
-        `Sizga quyidagi amallarda yordam bera olaman:\n` +
-        `• 🔍 Kerakli guruh va hudud bo'yicha **donorlarni topish**\n` +
-        `• 🚨 **SOS qon so'rovini** shakllantirish va e'lon qilish\n` +
-        `• 🩸 **Qon guruhlari mosligini** tekshirish\n` +
-        `• 📋 **Donorlikka tayyorgarlik** va qoidalarni o'rganish\n` +
-        `• 🏥 Shifoxona portali, dori eslatmalari va xaritadan foydalanish.`,
+        `• 🔍 Поиск доноров крови по вашей группе и региону\n` +
+        `• 🚨 Создание экстренной SOS заявки\n` +
+        `• 🩸 Проверка совместимости групп крови\n` +
+        `• 📋 Консультация по подготовке к донорству (стандарты Минздрава)\n` +
+        `• 🏥 Работа с картой доноров, порталом больницы и напоминаниями о лекарствах.`,
+      actions: [
+        { label: '🩸 Совместимость групп', action: 'ask_compat' },
+        { label: '🔍 Найти доноров', action: 'navigate', data: { path: '/map' } },
+        { label: '🚨 Создать SOS заявку', action: 'navigate', data: { path: '/request' } },
+        { label: '💊 Напоминания о лекарствах', action: 'navigate', data: { path: '/medications' } },
+      ],
+      disclaimer,
+    };
+  }
+
+  if (lang === 'en') {
+    return {
+      language: 'en',
+      response: `👋 Hello! I am the official AI assistant of the **DONOR** platform.\n\n` +
+        `How can I assist you today?\n` +
+        `• 🔍 **Find blood donors** by blood group and region\n` +
+        `• 🚨 **Create SOS blood requests** and broadcast notifications\n` +
+        `• 🩸 **Check blood group compatibility**\n` +
+        `• 📋 **Learn donor requirements & preparation rules** (Ministry of Health standards)\n` +
+        `• 🏥 Access interactive donor map, hospital portal, and medication reminders.`,
+      actions: [
+        { label: '🩸 Blood Compatibility', action: 'ask_compat' },
+        { label: '🔍 Search Donors', action: 'navigate', data: { path: '/map' } },
+        { label: '🚨 Create SOS Request', action: 'navigate', data: { path: '/request' } },
+        { label: '💊 Medication Reminders', action: 'navigate', data: { path: '/medications' } },
+      ],
+      disclaimer,
+    };
+  }
+
+  return {
+    language: 'uz',
+    response: `👋 Assalomu alaykum! Men **DONOR** platformasining rasmiy intellektual yordamchisiman.\n\n` +
+      `Sizga quyidagi amallarda yordam bera olaman:\n` +
+      `• 🔍 Kerakli guruh va hudud bo'yicha **donorlarni topish**\n` +
+      `• 🚨 **SOS qon so'rovini** shakllantirish va e'lon qilish\n` +
+      `• 🩸 **Qon guruhlari mosligini** tekshirish\n` +
+      `• 📋 **Donorlikka tayyorgarlik** va qoidalarni o'rganish\n` +
+      `• 🏥 Shifoxona portali, dori eslatmalari va xaritadan foydalanish.`,
     actions: [
       { label: '🩸 Qon guruhim mosligi', action: 'ask_compat' },
       { label: '🔍 Donor qidirish', action: 'navigate', data: { path: '/map' } },

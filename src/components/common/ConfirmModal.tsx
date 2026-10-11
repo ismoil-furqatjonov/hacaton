@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -16,14 +17,17 @@ export default function ConfirmModal({
   isOpen,
   title,
   message,
-  confirmText = 'Tasdiqlash',
-  cancelText = 'Bekor qilish',
+  confirmText,
+  cancelText,
   variant = 'danger',
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
+  const resolvedConfirm = confirmText || t('common.confirm');
+  const resolvedCancel = cancelText || t('common.cancel');
   const btnBg = variant === 'danger' ? '#DC2626' : variant === 'warning' ? '#D97706' : '#2563EB';
 
   return (
@@ -79,7 +83,7 @@ export default function ConfirmModal({
           </div>
           <button
             onClick={onCancel}
-            aria-label="Yopish"
+            aria-label={t('common.close')}
             style={{
               background: 'none',
               border: 'none',
@@ -115,7 +119,7 @@ export default function ConfirmModal({
               transition: 'background 0.15s ease',
             }}
           >
-            {cancelText}
+            {resolvedCancel}
           </button>
           <button
             type="button"
@@ -136,7 +140,7 @@ export default function ConfirmModal({
               transition: 'opacity 0.15s ease',
             }}
           >
-            {confirmText}
+            {resolvedConfirm}
           </button>
         </div>
       </div>

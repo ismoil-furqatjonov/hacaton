@@ -37,6 +37,29 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
+      const savedLang = (typeof localStorage !== 'undefined' ? localStorage.getItem('donor_language') : 'uz') || 'uz';
+      const messages = {
+        uz: {
+          title: this.props.fallbackTitle || 'Sahifada kutilmagan xatolik yuz berdi',
+          desc: "Xavotir olmang, ma'lumotlaringiz xavfsiz. Ushbu komponentni qayta yuklash yoki bosh sahifaga qaytishingiz mumkin.",
+          retry: 'Qayta urinish',
+          home: 'Bosh sahifa',
+        },
+        ru: {
+          title: this.props.fallbackTitle || 'Произошла непредвиденная ошибка',
+          desc: 'Не беспокойтесь, ваши данные в безопасности. Вы можете перезагрузить эту страницу или вернуться на главную.',
+          retry: 'Повторить попытку',
+          home: 'На главную',
+        },
+        en: {
+          title: this.props.fallbackTitle || 'An unexpected error occurred',
+          desc: "Don't worry, your data is safe. You can reload this component or return to the home page.",
+          retry: 'Try again',
+          home: 'Home page',
+        },
+      };
+      const text = messages[savedLang as 'uz' | 'ru' | 'en'] || messages.uz;
+
       return (
         <div style={{
           minHeight: '400px',
@@ -70,10 +93,10 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0F172A', marginBottom: '8px' }}>
-              {this.props.fallbackTitle || 'Sahifada xatolik yuz berdi'}
+              {text.title}
             </h3>
             <p style={{ fontSize: '0.9rem', color: '#64748B', lineHeight: 1.6, marginBottom: '24px' }}>
-              Xavotir olmang, ma'lumotlaringiz xavfsiz. Ushbu komponentni qayta yuklash yoki bosh sahifaga qaytishingiz mumkin.
+              {text.desc}
             </p>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -93,7 +116,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   cursor: 'pointer',
                 }}
               >
-                <RefreshCw size={16} /> Qayta urinish
+                <RefreshCw size={16} /> {text.retry}
               </button>
               <button
                 onClick={this.handleGoHome}
@@ -111,7 +134,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   cursor: 'pointer',
                 }}
               >
-                <Home size={16} /> Bosh sahifa
+                <Home size={16} /> {text.home}
               </button>
             </div>
           </div>

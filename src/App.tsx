@@ -75,7 +75,7 @@ export default function App() {
   const { user } = useAuth();
 
   return (
-    <ErrorBoundary fallbackTitle="Ilovada kutilmagan xatolik yuz berdi">
+    <ErrorBoundary>
       <Routes>
         {/* Auth page */}
         <Route path="/auth" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
